@@ -153,35 +153,7 @@ npm install
 5. **Firestore → Rules:** paste the contents of [`firestore.rules`](firestore.rules)
    and publish (or deploy with the CLI — see below).
 
-### 3. Environment variables
 
-Copy [`.env.example`](.env.example) to `.env` and fill in your Firebase values:
-
-```env
-VITE_FIREBASE_API_KEY=
-VITE_FIREBASE_AUTH_DOMAIN=
-VITE_FIREBASE_PROJECT_ID=
-VITE_FIREBASE_STORAGE_BUCKET=
-VITE_FIREBASE_MESSAGING_SENDER_ID=
-VITE_FIREBASE_APP_ID=
-```
-
-If any variable is missing, the app renders a helpful setup screen instead of
-crashing.
-
-Optional settings (all safe to leave blank for sensible defaults):
-
-```env
-VITE_USE_FIREBASE_EMULATORS=   # "true" to use local emulators
-VITE_TTS_PROVIDER=             # auto | edge | streamelements | elevenlabs | openai
-VITE_TTS_VOICE=                # StreamElements voice name (e.g. Matthew, Joanna)
-VITE_TTS_EDGE_URL=             # local neural voice server URL
-VITE_TTS_EDGE_VOICE=           # local neural voice name
-VITE_ELEVENLABS_API_KEY=
-VITE_ELEVENLABS_VOICE_ID=
-VITE_OPENAI_API_KEY=
-VITE_OPENAI_VOICE=
-```
 
 ### 4. Run
 
