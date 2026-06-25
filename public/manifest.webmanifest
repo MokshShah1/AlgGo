@@ -1,0 +1,19 @@
+{
+  "name": "AlgGo - Algebra on the Go",
+  "short_name": "AlgGo",
+  "description": "Learn algebra by doing: interactive 8th grade lessons on slope, rise over run, and y = mx + b.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B1020",
+  "theme_color": "#0B1020",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

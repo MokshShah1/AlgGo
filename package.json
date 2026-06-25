@@ -1,0 +1,47 @@
+{
+  "name": "alggo",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Learn-by-doing web app teaching 8th grade algebra: Linear Relationships - Slope & Graphing Lines.",
+  "scripts": {
+    "dev": "vite",
+    "tts": "node server/tts-server.mjs",
+    "tts:build": "tsx --tsconfig tsconfig.app.json scripts/build-tts.mjs",
+    "seed:demo": "node scripts/seed-demo.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "firebase:login": "firebase login",
+    "emulators": "firebase emulators:start",
+    "deploy": "npm run build && firebase deploy",
+    "deploy:hosting": "npm run build && firebase deploy --only hosting",
+    "deploy:rules": "firebase deploy --only firestore:rules"
+  },
+  "dependencies": {
+    "firebase": "^10.13.2",
+    "kokoro-js": "^1.2.1",
+    "lucide-react": "^1.21.0",
+    "motion": "^12.41.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2"
+  },
+  "devDependencies": {
+    "@breezystack/lamejs": "^1.2.7",
+    "@types/react": "^18.3.10",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.2",
+    "autoprefixer": "^10.4.20",
+    "firebase-tools": "^13.0.0",
+    "lamejs": "^1.2.1",
+    "msedge-tts": "^2.0.0",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "tsx": "^4.22.4",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8",
+    "vitest": "^2.1.9"
+  }
+}

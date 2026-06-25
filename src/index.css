@@ -1,0 +1,211 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Theme palette (space-separated RGB triplets for Tailwind's <alpha-value>). */
+  :root {
+    --c-canvas: 14 19 32;
+    --c-surface: 23 29 43;
+    --c-surface-2: 33 42 61;
+    --c-ink: 234 238 247;
+    --c-accent: 109 123 255;
+    --c-accent-dark: 85 99 240;
+    --c-violet: 156 140 255;
+    --c-correct: 43 193 114;
+    --c-hint: 240 163 60;
+    --c-danger: 242 85 75;
+    --c-sky: 70 198 245;
+    /* Bright, legible stops for gradient headings/wordmark. */
+    --c-grad-a: 150 168 255;
+    --c-grad-b: 188 166 255;
+    --c-grad-c: 116 214 255;
+    color-scheme: dark;
+  }
+
+  /* Light theme: applied when <html class="light"> is set. */
+  html.light {
+    --c-canvas: 244 246 251;
+    --c-surface: 255 255 255;
+    --c-surface-2: 238 241 248;
+    --c-ink: 24 31 46;
+    --c-accent: 85 99 240;
+    --c-accent-dark: 67 80 214;
+    --c-violet: 124 108 230;
+    --c-correct: 21 160 90;
+    --c-hint: 200 128 24;
+    --c-danger: 224 70 60;
+    --c-sky: 28 158 208;
+    /* Darker stops so the gradient text stays readable on white. */
+    --c-grad-a: 67 80 214;
+    --c-grad-b: 124 84 214;
+    --c-grad-c: 20 140 200;
+    color-scheme: light;
+  }
+
+  /* High-contrast mode: maximize text/background separation. */
+  html.contrast {
+    --c-canvas: 0 0 0;
+    --c-surface: 12 12 14;
+    --c-surface-2: 26 26 30;
+    --c-ink: 255 255 255;
+    --c-accent: 130 150 255;
+  }
+  html.light.contrast {
+    --c-canvas: 255 255 255;
+    --c-surface: 255 255 255;
+    --c-surface-2: 235 235 240;
+    --c-ink: 0 0 0;
+    --c-accent: 40 55 200;
+  }
+
+  /* Dyslexia-friendly font stack. */
+  html.dyslexic body {
+    font-family: "Comic Sans MS", "OpenDyslexic", "Trebuchet MS", Verdana,
+      sans-serif;
+    letter-spacing: 0.02em;
+    word-spacing: 0.08em;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-canvas text-ink font-sans antialiased;
+    /* Prevent horizontal scroll on small screens (PRD: works at 375px) */
+    overflow-x: hidden;
+  }
+
+  /* Avoid double-tap zoom delays on interactive controls (mobile UX) */
+  button,
+  [role="button"] {
+    touch-action: manipulation;
+  }
+}
+
+@layer components {
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-card px-6 py-3.5 text-base font-semibold transition-all duration-200 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-accent text-white shadow-pop hover:bg-accent-dark hover:-translate-y-0.5;
+  }
+  .btn-correct {
+    @apply btn bg-correct text-white shadow-[0_8px_30px_-8px_rgba(21,160,90,0.5)] hover:-translate-y-0.5;
+  }
+  .btn-ghost {
+    @apply btn border border-ink/10 bg-surface text-ink hover:border-ink/20 hover:-translate-y-0.5;
+  }
+
+  .card {
+    @apply rounded-card border border-ink/5 bg-surface shadow-card;
+  }
+
+  /* Text input / field base */
+  .field {
+    @apply rounded-xl border-2 border-ink/10 bg-surface-2 px-3 py-3 text-base text-ink outline-none transition-all placeholder:text-ink/35 focus:border-accent focus:ring-4 focus:ring-accent/20;
+  }
+
+  /* Gradient text for headings/wordmark — bright, high-contrast stops. */
+  .gradient-text {
+    background-image: linear-gradient(
+      90deg,
+      rgb(var(--c-grad-a)),
+      rgb(var(--c-grad-b)),
+      rgb(var(--c-grad-c))
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  /* High contrast: drop the gradient entirely for max legibility. */
+  html.contrast .gradient-text {
+    background-image: none;
+    -webkit-text-fill-color: rgb(var(--c-ink));
+    color: rgb(var(--c-ink));
+  }
+
+  /* Range slider used by SliderView */
+  .slider-input {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 0.6rem;
+    border-radius: 999px;
+    background: rgb(var(--c-surface-2));
+    outline: none;
+  }
+  .slider-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 1.75rem;
+    width: 1.75rem;
+    border-radius: 999px;
+    background: rgb(var(--c-accent));
+    border: 3px solid rgb(var(--c-surface));
+    box-shadow: 0 4px 14px -4px rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+  }
+  .slider-input::-moz-range-thumb {
+    height: 1.75rem;
+    width: 1.75rem;
+    border-radius: 999px;
+    background: rgb(var(--c-accent));
+    border: 3px solid rgb(var(--c-surface));
+    cursor: pointer;
+  }
+
+  /* Number-line track used by NumberLineView (drag a marker to a target). */
+  .number-line-track {
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Shimmering progress fill */
+  .progress-fill {
+    background-image: linear-gradient(
+      90deg,
+      rgb(var(--c-accent)) 0%,
+      rgb(var(--c-violet)) 50%,
+      rgb(var(--c-accent)) 100%
+    );
+    background-size: 200% 100%;
+    @apply animate-shimmer;
+  }
+}
+
+@layer utilities {
+  /* Staggered entrance delays */
+  .stagger-1 {
+    animation-delay: 60ms;
+  }
+  .stagger-2 {
+    animation-delay: 120ms;
+  }
+  .stagger-3 {
+    animation-delay: 180ms;
+  }
+  .stagger-4 {
+    animation-delay: 240ms;
+  }
+  .stagger-5 {
+    animation-delay: 300ms;
+  }
+}
+
+/* Respect users who prefer less motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
