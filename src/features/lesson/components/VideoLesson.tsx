@@ -283,7 +283,7 @@ export function VideoLesson({ lesson, solvable, onClose }: VideoLessonProps) {
   );
 }
 
-/** Friendly animated "tutor" that visibly talks while narrating. */
+/** Friendly tutor with a human profile photo that reacts while narrating. */
 function TutorAvatar({
   speaking,
   buffering,
@@ -302,30 +302,32 @@ function TutorAvatar({
           />
         </>
       )}
-      <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-accent to-violet shadow-pop">
-        <svg viewBox="0 0 64 64" className="h-14 w-14 text-white" aria-hidden="true">
-          <circle cx="24" cy="26" r="3.4" fill="currentColor" />
-          <circle cx="40" cy="26" r="3.4" fill="currentColor" />
-          {speaking ? (
-            <ellipse cx="32" cy="40" rx="7" ry="5" fill="currentColor">
-              <animate
-                attributeName="ry"
-                values="2;5.5;3;6;2.5"
-                dur="0.6s"
-                repeatCount="indefinite"
-              />
-            </ellipse>
-          ) : (
-            <path
-              d="M23 39 Q32 46 41 39"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="3"
-              strokeLinecap="round"
-            />
-          )}
-        </svg>
+      <div
+        className={`relative h-24 w-24 overflow-hidden rounded-full bg-gradient-to-br from-accent to-violet shadow-pop ring-2 ring-white/20 transition-transform duration-300 ${
+          speaking ? "scale-105" : "scale-100"
+        }`}
+      >
+        <img
+          src="/tutor.png"
+          alt="Your tutor"
+          className="h-full w-full object-cover"
+          draggable={false}
+        />
       </div>
+
+      {/* Talking indicator: animated sound bars while the voice is playing. */}
+      {speaking && (
+        <span className="absolute -bottom-1 flex items-end gap-0.5 rounded-pill bg-surface px-2 py-1 shadow-soft">
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className="h-2.5 w-1 origin-bottom animate-soundbar rounded-full bg-accent"
+              style={{ animationDelay: `${i * 0.15}s` }}
+            />
+          ))}
+        </span>
+      )}
+
       {buffering && (
         <span className="absolute -bottom-1 flex items-center gap-1 rounded-pill bg-surface px-2 py-0.5 text-[10px] font-semibold text-ink/60">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />

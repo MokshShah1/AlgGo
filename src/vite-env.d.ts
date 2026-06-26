@@ -21,6 +21,9 @@ interface ImportMetaEnv {
   readonly VITE_ELEVENLABS_VOICE_ID?: string;
   readonly VITE_OPENAI_API_KEY?: string;
   readonly VITE_OPENAI_VOICE?: string;
+
+  // AI tutor proxy URL (server/ai-server.mjs). Defaults to http://localhost:8787.
+  readonly VITE_AI_URL?: string;
 }
 
 interface ImportMeta {

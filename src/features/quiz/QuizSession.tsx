@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { ChevronLeft, ArrowRight, PencilLine, GraduationCap } from "lucide-react";
+import { ChevronLeft, ArrowRight, PencilLine, GraduationCap, Sparkles } from "lucide-react";
 import type { ChoiceOption, Point } from "@/types/lesson";
 import { useAuth } from "@/features/auth/AuthContext";
 import { awardXp, recordSolvableActivity } from "@/services/users";
@@ -9,6 +9,10 @@ import { logAttempt } from "@/services/attempts";
 import { validateSolvable, type SolvableAnswer } from "@/features/lesson/validate";
 import { getHints } from "@/features/lesson/hints";
 import { getLesson } from "@/content/course";
+import { AiTutorPanel } from "@/features/ai/AiTutorPanel";
+import { ReasoningBox } from "@/features/ai/ReasoningBox";
+import { aiAvailable, aiHint, aiExplain, type ProblemContext } from "@/lib/ai";
+import { CONCEPT_LABELS } from "@/types/concepts";
 import { VideoLesson } from "@/features/lesson/components/VideoLesson";
 import { XP_PER_SOLVABLE } from "@/features/scoring/constants";
 import { ProgressBar } from "@/features/lesson/components/ProgressBar";
@@ -131,6 +135,27 @@ export function QuizSession({
   // escalate on its own (reveal a hint, then offer the "teach me" video).
   const [wrongAttempts, setWrongAttempts] = useState(0);
   const [showTeach, setShowTeach] = useState(false);
+  const [aiOn, setAiOn] = useState(false);
+  const [showTutor, setShowTutor] = useState(false);
+  const [explainText, setExplainText] = useState<string | null>(null);
+  const [explainBusy, setExplainBusy] = useState(false);
+  useEffect(() => {
+    aiAvailable().then(setAiOn).catch(() => setAiOn(false));
+  }, []);
+  const lastMisconceptionRef = useRef<string | null>(null);
+
+  async function handleExplainMistake() {
+    if (explainBusy) return;
+    setExplainBusy(true);
+    setExplainText("Thinking…");
+    try {
+      setExplainText(await aiExplain(buildProblemContext()));
+    } catch {
+      setExplainText("Couldn't reach the tutor. Make sure the AI server is running (npm run ai).");
+    } finally {
+      setExplainBusy(false);
+    }
+  }
 
   const creditedRef = useRef(false);
   const servedRef = useRef(0);
@@ -226,6 +251,9 @@ export function QuizSession({
     setHintLevel(0);
     setWrongAttempts(0);
     setShowTeach(false);
+    setShowTutor(false);
+    setExplainText(null);
+    lastMisconceptionRef.current = null;
     creditedRef.current = false;
     if (solvable.kind === "observe" || solvable.kind === "graph-target") {
       setPoints({ pointA: solvable.graph.pointA, pointB: solvable.graph.pointB });
@@ -371,6 +399,7 @@ export function QuizSession({
       const detail = result.misconceptionTag
         ? humanizeMisconception(result.misconceptionTag)
         : undefined;
+      if (result.misconceptionTag) lastMisconceptionRef.current = result.misconceptionTag;
 
       // Escalate help automatically: on the 2nd wrong try reveal the next hint
       // (reusing the hint ladder); on the 3rd+ try we additionally surface the
@@ -400,9 +429,60 @@ export function QuizSession({
     };
   }
 
-  function showNextHint() {
+  function buildProblemContext(): ProblemContext {
+    const ctx: ProblemContext = {};
+    if (!solvable) return ctx;
+    ctx.lessonTitle = teachLesson?.title;
+    ctx.prompt = solvable.prompt;
+    ctx.concepts = solvable.concepts.map((c) => CONCEPT_LABELS[c] ?? c);
+    if (solvable.kind === "choice") {
+      ctx.choices = solvable.options.map((o) => o.label);
+      ctx.correctAnswer = solvable.options.find(
+        (o) => o.id === solvable.correctOptionId
+      )?.label;
+      if (choiceSelected) {
+        ctx.studentAnswer = solvable.options.find((o) => o.id === choiceSelected)?.label;
+      }
+    } else if (solvable.kind === "multi-select") {
+      ctx.choices = solvable.options.map((o) => o.label);
+      ctx.correctAnswer = solvable.options
+        .filter((o) => solvable.correctOptionIds.includes(o.id))
+        .map((o) => o.label)
+        .join(", ");
+      if (multiSelected.length) {
+        ctx.studentAnswer = solvable.options
+          .filter((o) => multiSelected.includes(o.id))
+          .map((o) => o.label)
+          .join(", ");
+      }
+    } else if (solvable.kind === "numeric") {
+      ctx.correctAnswer = solvable.acceptedAnswers[0];
+      if (numericValue) ctx.studentAnswer = numericValue;
+    } else if (solvable.kind === "graph-target") {
+      ctx.correctAnswer = `${solvable.targetSlope.rise}/${solvable.targetSlope.run}`;
+    }
+    if (lastMisconceptionRef.current) {
+      ctx.misconception = humanizeMisconception(lastMisconceptionRef.current);
+    }
+    return ctx;
+  }
+
+  async function showNextHint() {
     const level = Math.min(hintLevel + 1, hints.length);
     setHintLevel(level);
+    const isFinal = level >= hints.length;
+
+    if (aiOn && solvable) {
+      setFeedback({ variant: "reveal", message: "Thinking…" });
+      try {
+        const text = await aiHint({ ...buildProblemContext(), level, isFinal });
+        setFeedback({ variant: "reveal", message: text });
+        return;
+      } catch {
+        /* fall through to static ladder */
+      }
+    }
+
     const text = hints[level - 1];
     if (text) setFeedback({ variant: "reveal", message: text });
   }
@@ -510,7 +590,21 @@ export function QuizSession({
           onClose={() => setShowTeach(false)}
         />
       )}
-      {showScratch && <Scratchpad onClose={() => setShowScratch(false)} />}
+      {showScratch && (
+        <Scratchpad
+          onClose={() => setShowScratch(false)}
+          aiEnabled={aiOn}
+          problem={solvable ? buildProblemContext() : undefined}
+        />
+      )}
+      <AnimatePresence>
+        {showTutor && solvable && (
+          <AiTutorPanel
+            problem={buildProblemContext()}
+            onClose={() => setShowTutor(false)}
+          />
+        )}
+      </AnimatePresence>
       <div className="flex w-full flex-1 flex-col overflow-hidden lg:h-[calc(100dvh-3rem)] lg:max-w-3xl lg:flex-none lg:rounded-card lg:border lg:border-ink/5 lg:bg-surface lg:shadow-card">
         <header className="border-b border-ink/5 bg-surface/80 px-4 pb-3 pt-4 backdrop-blur sm:px-6">
           <div className="mx-auto flex max-w-2xl flex-col gap-2">
@@ -669,6 +763,13 @@ export function QuizSession({
                 disabled={status === "correct"}
               />
             )}
+            {aiOn && solvable && (
+              <ReasoningBox
+                key={solvable.id}
+                problem={buildProblemContext()}
+                wasCorrect={status === "correct"}
+              />
+            )}
           </motion.div>
           </AnimatePresence>
         </main>
@@ -695,15 +796,46 @@ export function QuizSession({
               </button>
             )}
 
-            <div className="flex items-center justify-between text-xs">
+            {aiOn && status === "wrong" && solvable && (
               <button
                 type="button"
-                onClick={() => setShowScratch(true)}
-                className="flex items-center gap-1 font-semibold text-ink/45 transition-colors hover:text-ink"
+                onClick={handleExplainMistake}
+                disabled={explainBusy}
+                className="btn w-full border border-accent/40 bg-accent/5 py-3 text-sm text-accent hover:bg-accent/10 disabled:opacity-60"
               >
-                <PencilLine className="h-4 w-4" aria-hidden="true" />
-                Scratchpad
+                <Sparkles className="h-5 w-5" aria-hidden="true" />
+                Explain my mistake
               </button>
+            )}
+
+            {explainText && (
+              <div className="animate-fade-in-up flex gap-2 rounded-card border border-accent/20 bg-accent/5 px-4 py-3 text-sm leading-snug text-ink/90">
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
+                <span className="whitespace-pre-line">{explainText}</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => setShowScratch(true)}
+                  className="flex items-center gap-1 font-semibold text-ink/45 transition-colors hover:text-ink"
+                >
+                  <PencilLine className="h-4 w-4" aria-hidden="true" />
+                  Scratchpad
+                </button>
+                {aiOn && solvable && (
+                  <button
+                    type="button"
+                    onClick={() => setShowTutor(true)}
+                    className="flex items-center gap-1 font-semibold text-accent/80 transition-colors hover:text-accent"
+                  >
+                    <Sparkles className="h-4 w-4" aria-hidden="true" />
+                    AI tutor
+                  </button>
+                )}
+              </div>
               {status === "wrong" && hintLevel < hints.length && (
                 <button
                   type="button"

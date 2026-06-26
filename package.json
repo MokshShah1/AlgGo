@@ -6,6 +6,7 @@
   "description": "Learn-by-doing web app teaching 8th grade algebra: Linear Relationships - Slope & Graphing Lines.",
   "scripts": {
     "dev": "vite",
+    "ai": "node server/ai-server.mjs",
     "tts": "node server/tts-server.mjs",
     "tts:build": "tsx --tsconfig tsconfig.app.json scripts/build-tts.mjs",
     "seed:demo": "node scripts/seed-demo.mjs",

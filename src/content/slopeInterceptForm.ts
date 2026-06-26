@@ -1,4 +1,20 @@
-import type { Lesson } from "@/types/lesson";
+import type { GraphConfig, Lesson } from "@/types/lesson";
+
+const BOUNDS = { xMin: -1, xMax: 7, yMin: -1, yMax: 7 } as const;
+
+function graph(overrides: Partial<GraphConfig>): GraphConfig {
+  return {
+    ...BOUNDS,
+    pointA: { x: 0, y: 2 },
+    pointB: { x: 4, y: 4 },
+    draggable: "none",
+    showLine: true,
+    showTriangle: true,
+    showSlopeLabel: false,
+    highlight: "none",
+    ...overrides,
+  };
+}
 
 /** Lesson 6: Build a Line with y = mx + b */
 export const slopeInterceptFormLesson: Lesson = {
@@ -63,6 +79,23 @@ export const slopeInterceptFormLesson: Lesson = {
       explanation: "In y = mx + b, b is added on and sets where the line crosses the y-axis.",
     },
     {
+      id: "si-slider-m",
+      kind: "slider",
+      prompt: "Set the slider to the slope (m) of the line y = 4x - 2.",
+      concepts: ["slope-ratio"],
+      difficulty: 2,
+      min: -10,
+      max: 10,
+      step: 1,
+      target: 4,
+      tolerance: 0,
+      wrongFeedback:
+        "The slope is the number multiplied by x. In y = 4x - 2, that's the 4.",
+      correctFeedback: "Yes - m = 4 is the slope, the number in front of x.",
+      explanation:
+        "In y = mx + b, m is the coefficient of x. For y = 4x - 2, m = 4 (the -2 is the intercept).",
+    },
+    {
       id: "si-3-slope",
       kind: "numeric",
       prompt: "In y = 3x + 2, what is the slope?",
@@ -99,6 +132,32 @@ export const slopeInterceptFormLesson: Lesson = {
       explanation: "In y = 3x + 2, the constant (2) is the y-intercept.",
     },
     {
+      id: "si-graph-build",
+      kind: "graph-target",
+      prompt:
+        "This line starts at the y-intercept (0, 2). Drag point B so the line has slope 1.",
+      concepts: ["slope-ratio", "constant-slope"],
+      difficulty: 2,
+      graph: graph({
+        pointA: { x: 0, y: 2 },
+        pointB: { x: 5, y: 3 },
+        draggable: "B",
+        showSlopeLabel: true,
+        preventVertical: true,
+      }),
+      targetSlope: { rise: 1, run: 1 },
+      feedback: {
+        swapped: "Slope 1 means equal rise and run - up 1 for every 1 across.",
+        negative: "Slope 1 is positive, so the line should rise as it moves right.",
+        verticalRun0: "A vertical line has undefined slope. Move right as well as up.",
+        generic: "For every 1 step right, the line should go up 1 step.",
+      },
+      correctFeedback:
+        "Perfect - starting at (0, 2) with slope 1 builds the line y = x + 2.",
+      explanation:
+        "Plot the y-intercept (0, 2), then use the slope: up 1 for every 1 across. That gives points like (1, 3) and (2, 4): the line y = x + 2.",
+    },
+    {
       id: "si-5-evaluate",
       kind: "numeric",
       prompt: "For y = 2x + 1, what is y when x = 2?",
@@ -126,6 +185,7 @@ export const slopeInterceptFormLesson: Lesson = {
       kind: "choice",
       prompt: "Which equation has slope 4 and y-intercept -1?",
       concepts: ["slope-ratio"],
+      difficulty: 3,
       variant: "list",
       options: [
         { id: "correct", label: "y = 4x - 1" },

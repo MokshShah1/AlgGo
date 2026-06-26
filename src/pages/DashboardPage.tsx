@@ -18,6 +18,7 @@ import { buildActivity, solvedToday } from "@/features/progress/activity";
 import { ActivityCalendar } from "@/features/progress/ActivityCalendar";
 import { getStreakStatus, repairStreak } from "@/features/scoring/streakRepair";
 import { ContinueHero } from "@/features/dashboard/ContinueHero";
+import { CoachCard } from "@/features/dashboard/CoachCard";
 import { ReviewsDueCard } from "@/features/dashboard/ReviewsDueCard";
 import { StreakNudge } from "@/features/dashboard/StreakNudge";
 import { countReviewsDue } from "@/features/dashboard/reviewsDue";
@@ -179,6 +180,9 @@ export function DashboardPage() {
         {/* Attention banners — only render when relevant */}
         <StreakNudge profile={profile} doneToday={doneToday} dailyGoal={dailyGoal} />
         <ReviewsDueCard count={reviewsDue} />
+
+        {/* AI coach: what to study next */}
+        <CoachCard mastery={mastery} streak={profile?.streakCount ?? 0} />
 
         {/* Today's goal */}
         <DailyGoalCard done={doneToday} goal={dailyGoal} onChange={changeGoal} />

@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { Crown } from "lucide-react";
+import { Bot, Crown, Sparkles } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
+import { aiAvailable, aiRival } from "@/lib/ai";
 import { updateUserProfile } from "@/services/users";
 import {
   fetchTopLeaderboard,
@@ -27,6 +28,11 @@ export function LeaderboardPage() {
   const [page, setPage] = useState(1);
   const [myRank, setMyRank] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Playful AI rival nudge — purely a client-side visual, never persisted.
+  const [rival, setRival] = useState<{ rivalName: string; message: string } | null>(
+    null
+  );
+  const rivalFetched = useRef(false);
   // Opt-out model: everyone is on the board unless they explicitly hid themselves.
   const optedIn = profile?.leaderboardOptIn !== false;
 
@@ -88,6 +94,31 @@ export function LeaderboardPage() {
       active = false;
     };
   }, [user, profile, scope]);
+
+  // Fetch the AI rival once, after we know who the learner is. Fails soft:
+  // if the proxy is offline or the call throws, we simply render nothing extra.
+  useEffect(() => {
+    if (rivalFetched.current || !profile) return;
+    rivalFetched.current = true;
+    let active = true;
+    (async () => {
+      try {
+        if (!(await aiAvailable())) return;
+        const result = await aiRival({
+          userName: profile.displayName,
+          userXp: profile.totalXp,
+          rank: myRank ?? undefined,
+          streak: profile.streakCount,
+        });
+        if (active) setRival(result);
+      } catch {
+        /* fail soft — leave the leaderboard untouched */
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [profile, myRank]);
 
   async function toggleOptIn() {
     if (!user || !profile) return;
@@ -196,6 +227,30 @@ export function LeaderboardPage() {
             {optedIn ? "Hide me" : "Show me"}
           </button>
         </div>
+
+        {rival && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="card flex items-center gap-3 border border-violet/40 bg-violet/10 p-4"
+          >
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-violet text-base font-bold text-white shadow-soft">
+              {rival.rivalName.trim().charAt(0).toUpperCase() || (
+                <Bot className="h-5 w-5" aria-hidden="true" />
+              )}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <p className="truncate text-sm font-bold">{rival.rivalName}</p>
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-pill bg-violet/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet">
+                  <Sparkles className="h-3 w-3" aria-hidden="true" />
+                  AI
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-ink/70">{rival.message}</p>
+            </div>
+          </motion.div>
+        )}
 
         {error ? (
           <div className="card border border-danger/40 bg-danger/10 p-5 text-sm">

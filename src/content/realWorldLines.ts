@@ -1,4 +1,20 @@
-import type { Lesson } from "@/types/lesson";
+import type { GraphConfig, Lesson } from "@/types/lesson";
+
+const BOUNDS = { xMin: -1, xMax: 7, yMin: -1, yMax: 7 } as const;
+
+function graph(overrides: Partial<GraphConfig>): GraphConfig {
+  return {
+    ...BOUNDS,
+    pointA: { x: 0, y: 2 },
+    pointB: { x: 4, y: 3 },
+    draggable: "none",
+    showLine: true,
+    showTriangle: true,
+    showSlopeLabel: false,
+    highlight: "none",
+    ...overrides,
+  };
+}
 
 /** Lesson 9: Lines in the Real World */
 export const realWorldLinesLesson: Lesson = {
@@ -88,6 +104,32 @@ export const realWorldLinesLesson: Lesson = {
       explanation: "The 5 multiplies GB, so it's the rate of change: the slope.",
     },
     {
+      id: "rw-graph-savings",
+      kind: "graph-target",
+      prompt:
+        "Your savings start at $2 (point at (0, 2)) and grow steadily. Drag point B so the savings rate (slope) is $2 per week.",
+      concepts: ["slope-ratio", "constant-rate"],
+      difficulty: 2,
+      graph: graph({
+        pointA: { x: 0, y: 2 },
+        pointB: { x: 5, y: 3 },
+        draggable: "B",
+        showSlopeLabel: true,
+        preventVertical: true,
+      }),
+      targetSlope: { rise: 2, run: 1 },
+      feedback: {
+        swapped: "A rate of $2/week is up 2 for every 1 across, not 1 up for 2 across.",
+        negative: "Savings grow, so the slope is positive - the line should rise.",
+        verticalRun0: "Time keeps moving right, so the run can't be zero.",
+        generic: "For every 1 week (right 1), savings should rise by $2 (up 2).",
+      },
+      correctFeedback:
+        "Perfect - starting at $2 and rising $2 each week models y = 2x + 2.",
+      explanation:
+        "The starting $2 is the y-intercept and the $2-per-week rate is the slope: up 2 for every 1 week, the line y = 2x + 2.",
+    },
+    {
       id: "rw-4-candle",
       kind: "numeric",
       prompt:
@@ -110,6 +152,25 @@ export const realWorldLinesLesson: Lesson = {
       genericHint: "height = 20 - 2 * hours = 20 - 2*4.",
       correctFeedback: "Right - 20 - 2*4 = 12 cm. The negative slope means it shrinks.",
       explanation: "height = 20 - 2(4) = 20 - 8 = 12 cm. Burning down is a negative slope.",
+    },
+    {
+      id: "rw-slider-tank",
+      kind: "slider",
+      prompt:
+        "A tank holds 12 L and drains 2 L each minute. Set the slider to how much water is left after 3 minutes.",
+      concepts: ["constant-rate", "slope-ratio"],
+      difficulty: 2,
+      min: 0,
+      max: 12,
+      step: 1,
+      target: 6,
+      tolerance: 0,
+      unit: " L",
+      wrongFeedback:
+        "Start at 12 and subtract the drained amount: 2 L/min for 3 min is 2 x 3 = 6 L.",
+      correctFeedback: "Right - 12 - 2 x 3 = 12 - 6 = 6 L left.",
+      explanation:
+        "Amount = 12 - 2x. At x = 3: 12 - 6 = 6 L. The negative slope (-2) means the water drops over time.",
     },
     {
       id: "rw-5-savings",

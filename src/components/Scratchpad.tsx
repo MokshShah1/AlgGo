@@ -4,16 +4,52 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { Sparkles } from "lucide-react";
+import { aiScratchpad, type ProblemContext } from "@/lib/ai";
+
+interface ScratchpadProps {
+  onClose: () => void;
+  /** When provided with aiEnabled, shows a "Check my work" (AI vision) button. */
+  problem?: ProblemContext;
+  aiEnabled?: boolean;
+}
 
 /**
  * A lightweight finger/mouse drawing canvas for working out problems beside a
  * question. Pure canvas + pointer events; nothing is persisted.
  */
-export function Scratchpad({ onClose }: { onClose: () => void }) {
+export function Scratchpad({ onClose, problem, aiEnabled }: ScratchpadProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const last = useRef<{ x: number; y: number } | null>(null);
   const [color, setColor] = useState("#6D7BFF");
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function checkWork() {
+    const canvas = canvasRef.current;
+    if (!canvas || !problem || busy) return;
+    setBusy(true);
+    setFeedback("Reading your work…");
+    try {
+      // Composite onto white so the model sees dark strokes on a light page.
+      const tmp = document.createElement("canvas");
+      tmp.width = canvas.width;
+      tmp.height = canvas.height;
+      const tctx = tmp.getContext("2d");
+      if (tctx) {
+        tctx.fillStyle = "#ffffff";
+        tctx.fillRect(0, 0, tmp.width, tmp.height);
+        tctx.drawImage(canvas, 0, 0);
+      }
+      const dataUrl = tmp.toDataURL("image/jpeg", 0.85);
+      setFeedback(await aiScratchpad(dataUrl, problem));
+    } catch {
+      setFeedback("Couldn't reach the tutor. Make sure the AI server is running (npm run ai).");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   // Size the canvas backing store to its rendered size (for crisp lines).
   useEffect(() => {
@@ -122,10 +158,28 @@ export function Scratchpad({ onClose }: { onClose: () => void }) {
           onPointerCancel={end}
         />
 
+        {feedback && (
+          <div className="flex gap-2 border-t border-white/5 bg-accent/5 px-4 py-3 text-sm leading-snug text-ink/90">
+            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
+            <span className="whitespace-pre-line">{feedback}</span>
+          </div>
+        )}
+
         <div className="flex gap-3 border-t border-white/5 px-4 py-3">
           <button type="button" onClick={clear} className="btn-ghost flex-1 py-2.5 text-sm">
             Clear
           </button>
+          {aiEnabled && problem && (
+            <button
+              type="button"
+              onClick={checkWork}
+              disabled={busy}
+              className="btn flex-1 border border-accent/40 bg-accent/10 py-2.5 text-sm text-accent hover:bg-accent/20 disabled:opacity-60"
+            >
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
+              {busy ? "Checking…" : "Check my work"}
+            </button>
+          )}
           <button type="button" onClick={onClose} className="btn-primary flex-1 py-2.5 text-sm">
             Done
           </button>

@@ -5,6 +5,8 @@ import { Confetti } from "@/components/Confetti";
 import { Certificate } from "@/features/course/Certificate";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useLearnerData } from "@/features/progress/useLearnerData";
+import { RecapCard } from "@/features/lesson/RecapCard";
+import { CONCEPT_LABELS } from "@/types/concepts";
 import { playComplete } from "@/lib/sfx";
 
 interface CompleteState {
@@ -22,7 +24,7 @@ export function LessonCompletePage() {
   const location = useLocation();
   const state = (location.state ?? {}) as CompleteState;
   const { profile } = useAuth();
-  const { progress } = useLearnerData();
+  const { progress, mastery } = useLearnerData();
 
   useEffect(() => {
     playComplete();
@@ -33,6 +35,13 @@ export function LessonCompletePage() {
 
   const completedCount = progress.filter((p) => p.status === "completed").length;
   const chapterComplete = completedCount >= course.lessons.length;
+
+  const masteredLabels = mastery
+    .filter((m) => m.level >= 3)
+    .map((m) => CONCEPT_LABELS[m.conceptId] ?? m.conceptId);
+  const reviewLabels = mastery
+    .filter((m) => m.needsReview && m.level < 3)
+    .map((m) => CONCEPT_LABELS[m.conceptId] ?? m.conceptId);
 
   const totalXp = (state.xpEarned ?? 0) + (state.bonusXp ?? 0);
   // Default to passed when state is missing (e.g. a hard refresh) so we never
@@ -106,6 +115,13 @@ export function LessonCompletePage() {
               />
             )}
         </div>
+
+        <RecapCard
+          lessonTitle={lesson?.title ?? "this lesson"}
+          score={score}
+          mastered={masteredLabels}
+          toReview={reviewLabels}
+        />
 
         {passed && chapterComplete && (
           <div className="flex flex-col gap-2">

@@ -90,6 +90,11 @@ const LeaderboardPage = lazy(() =>
     default: m.LeaderboardPage,
   }))
 );
+const SnapProblemPage = lazy(() =>
+  import("@/pages/SnapProblemPage").then((m) => ({
+    default: m.SnapProblemPage,
+  }))
+);
 
 export default function App() {
   const firebase = getFirebaseConfig();
@@ -248,6 +253,14 @@ function AnimatedRoutes() {
           element={
             <RequireAuth>
               <SandboxPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/snap"
+          element={
+            <RequireAuth>
+              <SnapProblemPage />
             </RequireAuth>
           }
         />

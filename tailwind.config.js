@@ -94,6 +94,10 @@ export default {
           "60%": { transform: "scale(1.1)" },
           "100%": { transform: "scale(1)", opacity: "1" },
         },
+        soundbar: {
+          "0%, 100%": { transform: "scaleY(0.4)" },
+          "50%": { transform: "scaleY(1.2)" },
+        },
       },
       animation: {
         "fade-in": "fade-in 0.4s ease-out both",
@@ -108,6 +112,7 @@ export default {
         "count-pop": "count-pop 0.45s cubic-bezier(0.34,1.56,0.64,1) both",
         confetti: "confetti 3s linear forwards",
         "draw-check": "draw-check 0.5s ease-out 0.3s forwards",
+        soundbar: "soundbar 0.7s ease-in-out infinite",
       },
     },
   },
