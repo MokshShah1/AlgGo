@@ -1,5 +1,7 @@
 # AlgGo — Algebra on the Go
 
+> **🚀 Live app:** **https://alg-go.vercel.app**
+
 > **Subject:** 8th Grade Algebra: Linear Relationships
 > **Chapter:** Slope, Graphing Lines, and `y = mx + b`
 > **Flagship lesson:** Slope = Rise / Run
@@ -81,6 +83,38 @@ Beyond the core lessons, the app offers many ways to practice:
 - **XP-gated avatars:** unlock new avatar options as you earn XP.
 - **Leaderboards:** opt-in **weekly** and **all-time** XP boards.
 
+### AI features — meet AXIOM & Sammy
+
+On top of the hand-authored lessons, AlgGo layers in an AI tutor (**AXIOM**) and an
+AI rival (**Sammy**), powered by OpenAI through a server-side proxy so the API key
+never reaches the browser:
+
+- **AXIOM tutor chat** — ask for help on the current problem; AXIOM guides you a
+  step at a time instead of just handing over the answer.
+- **Dynamic hints** — progressive, mistake-aware hints generated for the exact
+  problem you're on.
+- **Explain my mistake** — after a wrong answer, AXIOM writes a step-by-step of why
+  *your* answer was off and how to fix it, using the stored misconception tag.
+- **Type your reasoning** — explain your thinking in words; AXIOM judges the
+  understanding, not just the final number.
+- **Personalized daily challenge** — a practice set built from your weak concepts
+  and recent mistakes.
+- **Snap-a-problem** — photograph a homework problem; AXIOM reads it and spins up an
+  interactive version in the app.
+- **Scratchpad work-checker** — AXIOM reads a photo of your scratch work and gives
+  feedback on the *steps*, not just the answer.
+- **AXIOM study coach** — a dashboard card that reads your mastery data and tells you
+  exactly what to do next and why.
+- **Lesson recap** — a personalized "here's what you nailed / here's what to review"
+  summary at the end of each lesson.
+- **Sammy, the AI rival** — a cocky AI persona on the leaderboard whose XP climbs in
+  real time, so falling behind nudges you to keep going. His trash-talk is generated
+  live and reacts to whether he's ahead or behind.
+
+AI gracefully degrades: if the proxy/key isn't configured, the app falls back to its
+built-in static hints and content — nothing breaks. See
+[AI setup](#ai-tutor-axiom-setup) below.
+
 ### Accessibility
 
 - **Light / dark** themes.
@@ -88,14 +122,17 @@ Beyond the core lessons, the app offers many ways to practice:
 - **Dyslexia-friendly font** toggle.
 - **Reduced motion** (also respects the OS `prefers-reduced-motion` setting).
 
-### Content & feedback are hand-authored
+### Content & feedback are hand-authored (AI augments, never replaces)
 
-All lesson content, hints, and answer validation are hand-authored and run
-locally and synchronously — there is no generated lesson content and no chatbot.
+All **core** lesson content, validation, and the built-in hints/explanations are
+hand-authored and run locally and synchronously, so the app is fully functional
+even with AI turned off. The AI features above (AXIOM tutor, dynamic hints, Sammy,
+etc.) **augment** that core — they add tutoring, personalization, and motivation on
+top of the authored curriculum rather than generating the lessons themselves.
 
-> **Voice narration exception:** the optional "Teach me" mini-lessons read the
-> authored explanation aloud using a text-to-speech voice (this only converts
-> the hand-written text to audio — it does not generate any lesson content).
+> **Voice narration:** the optional "Teach me" mini-lessons read the authored
+> explanation aloud using a text-to-speech voice (this converts the hand-written
+> text to audio — it does not generate lesson content).
 
 ## Voice / TTS narration
 
@@ -120,6 +157,36 @@ Provider selection and voice names are configurable in `.env` — see
 [`.env.example`](.env.example) (`VITE_TTS_*`, `VITE_ELEVENLABS_*`,
 `VITE_OPENAI_*`).
 
+## AI tutor (AXIOM) setup
+
+The AI features (AXIOM tutor/hints/coach/recap, explain-my-mistake, reasoning,
+daily challenge, snap-a-problem, scratchpad, and Sammy) talk to OpenAI through a
+small proxy so the API key **never** ships in the web bundle or the repo.
+
+**Local development:** add `OPENAI_API_KEY=sk-...` to `.env` (gitignored), then run
+the proxy alongside the app:
+
+```bash
+npm run ai         # AI proxy on http://localhost:8787
+npm run dev        # the web app, in another terminal
+```
+
+If no key is set, the proxy returns 503 and the app falls back to its built-in
+static hints — nothing breaks. See [`.env.example`](.env.example) for all AI options
+(`OPENAI_API_KEY`, `OPENAI_ORG`, `AI_MODEL`, `AI_MODEL_FAST`, …).
+
+**Production:** the same proxy logic is deployed as a serverless function so the
+live site has working AI:
+
+- **Vercel (current live deploy):** [`api/proxy.js`](api/proxy.js) is a serverless
+  function; [`vercel.json`](vercel.json) rewrites `/ai/**` and `/health` to it so the
+  app calls AI same-origin. Set `OPENAI_API_KEY` (and the `VITE_FIREBASE_*` build
+  vars) in the Vercel project's Environment Variables.
+- **Firebase Cloud Function (alternative):** [`functions/`](functions/) holds the same
+  proxy as a 2nd-gen function, wired up via Hosting rewrites in
+  [`firebase.json`](firebase.json). Requires the Blaze plan and the secret
+  `firebase functions:secrets:set OPENAI_API_KEY`, then `npm run deploy:live`.
+
 ## Tech stack
 
 - React 18 + TypeScript + Vite 5
@@ -128,8 +195,10 @@ Provider selection and voice names are configurable in `.env` — see
 - `motion` (Framer Motion) for page/route transitions
 - Firebase Authentication + Firestore
 - SVG (not Canvas) for crisp, accessible, state-driven coordinate geometry
+- OpenAI (GPT-4o / GPT-4o-mini) behind a server-side proxy for the AI features
 - Vitest for unit tests
-- Firebase Hosting (deploy target)
+- **Deployed on Vercel** (static app + serverless AI proxy); Firebase Hosting also
+  supported (with a Cloud Function proxy)
 
 ## Project setup
 
@@ -168,6 +237,7 @@ Open the printed `http://localhost:5173` URL.
 | Script                   | What it does                                          |
 | ------------------------ | ----------------------------------------------------- |
 | `npm run dev`            | Start the Vite dev server.                            |
+| `npm run ai`             | Start the local AI tutor proxy (OpenAI).              |
 | `npm run tts`            | Start the optional local neural TTS voice server.     |
 | `npm test`               | Run the unit tests once (Vitest).                     |
 | `npm run test:watch`     | Run the unit tests in watch mode.                     |
@@ -177,6 +247,8 @@ Open the printed `http://localhost:5173` URL.
 | `npm run emulators`      | Start the Firebase emulators.                         |
 | `npm run deploy`         | Build + deploy hosting and Firestore rules.           |
 | `npm run deploy:hosting` | Build + deploy hosting only.                          |
+| `npm run deploy:functions` | Deploy the Firebase Cloud Function AI proxy.        |
+| `npm run deploy:live`    | Build + deploy Firebase hosting **and** the function. |
 | `npm run deploy:rules`   | Deploy Firestore rules only.                          |
 
 ## Tests
@@ -229,7 +301,8 @@ Hosting, rules, indexes, and emulator config live in
 [`firebase.json`](firebase.json); the default project is set in
 [`.firebaserc`](.firebaserc).
 
-**Deployed link:** _Add your Firebase Hosting URL here after the first deploy._
+**Deployed link:** **https://alg-go.vercel.app** (Vercel — static app + serverless AI
+proxy). The project also has a Firebase Hosting target for the static app.
 
 ## Architecture overview
 
@@ -303,15 +376,13 @@ to validate an answer.
 - Feedback appears under 100ms (validation is local and synchronous).
 - SVG dragging feels smooth on touch and mouse.
 
-### No generated content / no chatbot
+### AI integration
 
-There is no chatbot and no generated lesson content; the only outbound model
-service is the optional voice narration in `src/lib/tts.ts` (text-to-speech of
-the hand-authored explanation). Excluding that file, the codebase has no model
-calls:
-
-```bash
-# Should return no matches outside the optional TTS module
-grep -riE "\b(openai|anthropic|gemini|llm|chatbot|ai tutor)\b" src/ \
-  --exclude=tts.ts
-```
+The **core curriculum** (all lessons, validators, and built-in hints) is
+hand-authored and runs locally, so the app works fully with AI disabled. On top of
+that, AlgGo integrates OpenAI for the AXIOM tutor and Sammy rival features described
+[above](#ai-features--meet-axiom--sammy). All model calls go through a server-side
+proxy ([`server/ai-server.mjs`](server/ai-server.mjs) locally,
+[`api/proxy.js`](api/proxy.js) on Vercel, [`functions/`](functions/) on Firebase), so
+the API key is never exposed to the browser. The client-side AI helpers live in
+[`src/lib/ai.ts`](src/lib/ai.ts).
