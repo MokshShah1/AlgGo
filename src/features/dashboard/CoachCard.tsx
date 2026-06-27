@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { Compass, Sparkles } from "lucide-react";
 import { aiAvailable, aiCoach } from "@/lib/ai";
+import { AI_NAME } from "@/lib/aiPersona";
 import { CONCEPT_LABELS } from "@/types/concepts";
 import type { ConceptId } from "@/types/concepts";
 
@@ -68,8 +69,11 @@ export function CoachCard({ mastery, streak }: CoachCardProps) {
         <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-violet text-white shadow-soft">
           <Compass className="h-4 w-4" />
         </span>
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-ink/60">
-          Your AI coach
+        <h2 className="text-sm font-bold tracking-wide text-ink">
+          {AI_NAME}
+          <span className="ml-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink/45">
+            your AI coach
+          </span>
         </h2>
         <Sparkles className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
       </div>

@@ -9,6 +9,7 @@ import { AiProblemRunner } from "@/features/ai/AiProblemRunner";
 import { useLearnerData } from "@/features/progress/useLearnerData";
 import { CONCEPT_LABELS } from "@/types/concepts";
 import { aiAvailable, aiDaily, type AiGeneratedProblem } from "@/lib/ai";
+import { AI_NAME } from "@/lib/aiPersona";
 
 const DAILY_KEY = "bs.dailyDone";
 const DAILY_COUNT = 5;
@@ -83,7 +84,7 @@ export function DailyChallengePage() {
       if (!problems.length) {
         setAi({
           status: "error",
-          message: "The AI couldn't build a set right now. Try the daily challenge below.",
+          message: `${AI_NAME} couldn't build a set right now. Try the daily challenge below.`,
         });
         return;
       }
@@ -91,7 +92,7 @@ export function DailyChallengePage() {
     } catch {
       setAi({
         status: "error",
-        message: "Something went wrong reaching the AI. Try the daily challenge below.",
+        message: `Something went wrong reaching ${AI_NAME}. Try the daily challenge below.`,
       });
     }
   }
@@ -181,7 +182,7 @@ export function DailyChallengePage() {
               <Sparkles className="h-5 w-5" aria-hidden="true" />
             </span>
             <div>
-              <p className="text-sm font-semibold">Personalize with AI</p>
+              <p className="text-sm font-semibold">Personalize with {AI_NAME}</p>
               <p className="mt-0.5 text-xs text-ink/60">
                 A fresh {DAILY_COUNT}-question set tuned to
                 {weakConcepts.length > 0
@@ -200,7 +201,7 @@ export function DailyChallengePage() {
               ) : (
                 <>
                   <Sparkles className="h-5 w-5" aria-hidden="true" />
-                  Personalize with AI
+                  Personalize with {AI_NAME}
                 </>
               )}
             </button>

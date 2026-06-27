@@ -3,10 +3,21 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
+  "functions": {
+    "source": "functions"
+  },
   "hosting": {
     "public": "dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
+      {
+        "source": "/ai/**",
+        "function": "api"
+      },
+      {
+        "source": "/health",
+        "function": "api"
+      },
       {
         "source": "**",
         "destination": "/index.html"

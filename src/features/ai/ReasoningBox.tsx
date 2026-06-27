@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { PenLine, Check, AlertCircle, XCircle } from "lucide-react";
 import { aiReasoning, type AiVerdict, type ProblemContext } from "@/lib/ai";
+import { AI_NAME } from "@/lib/aiPersona";
 
 interface ReasoningBoxProps {
   problem: ProblemContext;
@@ -92,7 +93,7 @@ export function ReasoningBox({ problem, wasCorrect }: ReasoningBoxProps) {
 
       {error && (
         <p className="text-xs text-danger">
-          Couldn't reach the tutor. Make sure the AI server is running (npm run ai).
+          Couldn't reach {AI_NAME}. Make sure the AI server is running (npm run ai).
         </p>
       )}
 

@@ -100,12 +100,21 @@ function sendJson(res, code, obj) {
   res.end(JSON.stringify(obj));
 }
 
+// Image endpoints (vision / scratchpad) send base64 data URLs that are several
+// MB, so the cap has to comfortably exceed a phone photo. ~25 MB leaves room
+// for an inflated base64 payload while still guarding against runaway uploads.
+const MAX_BODY_BYTES = 25_000_000;
+
 function readBody(req) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     let data = "";
+    let aborted = false;
     req.on("data", (c) => {
       data += c;
-      if (data.length > 1_000_000) req.destroy(); // basic guard
+      if (data.length > MAX_BODY_BYTES) {
+        aborted = true;
+        req.destroy();
+      }
     });
     req.on("end", () => {
       try {
@@ -113,6 +122,9 @@ function readBody(req) {
       } catch {
         resolve({});
       }
+    });
+    req.on("error", () => {
+      reject(new Error(aborted ? "Request body too large" : "Request stream error"));
     });
   });
 }
@@ -155,11 +167,12 @@ async function callModel({
       throw new Error(`Claude ${res.status}: ${detail.slice(0, 300)}`);
     }
     const data = await res.json();
-    return (data.content || [])
+    const out = (data.content || [])
       .filter((b) => b.type === "text")
       .map((b) => b.text)
       .join("")
       .trim();
+    return json ? out : stripDashes(out);
   }
 
   // OpenAI (default). The system prompt is the first message.
@@ -200,7 +213,32 @@ async function callModel({
     throw new Error(`OpenAI ${res.status}: ${detail.slice(0, 300)}`);
   }
   const data = await res.json();
-  return (data.choices?.[0]?.message?.content || "").trim();
+  const out = (data.choices?.[0]?.message?.content || "").trim();
+  return json ? out : stripDashes(out);
+}
+
+/**
+ * AlgGo never uses em/en dashes in AI copy — they read as "AI slop". Swap them
+ * for a comma (or drop them before punctuation) so output stays clean.
+ */
+function stripDashes(s) {
+  return String(s)
+    .replace(/\s*[\u2014\u2013\u2015]\s*/g, ", ")
+    .replace(/\s+,/g, ",")
+    .replace(/,\s*,/g, ",")
+    .replace(/,\s*([.!?;:])/g, "$1");
+}
+
+/** Recursively strip dashes from every string in a parsed model object. */
+function sanitizeDeep(v) {
+  if (typeof v === "string") return stripDashes(v);
+  if (Array.isArray(v)) return v.map(sanitizeDeep);
+  if (v && typeof v === "object") {
+    const out = {};
+    for (const k of Object.keys(v)) out[k] = sanitizeDeep(v[k]);
+    return out;
+  }
+  return v;
 }
 
 /** Parse a JSON object from a model reply, tolerating stray code fences/prose. */
@@ -208,12 +246,12 @@ function parseJsonReply(text) {
   let t = String(text || "").trim();
   t = t.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
   try {
-    return JSON.parse(t);
+    return sanitizeDeep(JSON.parse(t));
   } catch {
     const start = t.indexOf("{");
     const end = t.lastIndexOf("}");
     if (start >= 0 && end > start) {
-      return JSON.parse(t.slice(start, end + 1));
+      return sanitizeDeep(JSON.parse(t.slice(start, end + 1)));
     }
     throw new Error("Model did not return valid JSON");
   }
@@ -296,9 +334,14 @@ const RECAP_SYSTEM = `You are AlgGo's tutor writing a short, personalized recap 
 Given their score and which concepts they mastered vs. should review, write: one line of praise for what they nailed, one line on what to review, and one encouraging closer.
 3 short sentences max, warm, plain text, no markdown.`;
 
-const RIVAL_SYSTEM = `You are a friendly, playful study rival for an 8th grader on a math leaderboard.
-Write ONE short, motivating message (1-2 sentences) that good-naturedly challenges them to keep climbing - encouraging, never mean, light competitive trash-talk is ok.
-Return JSON: {"rivalName":"a fun first-name + initial","message":"..."}. No markdown.`;
+const RIVAL_SYSTEM = `You ARE "Sammy", a cocky, confident AI rival on an 8th grader's math leaderboard.
+Write ONE short, punchy line of competitive trash talk. Hard limit: under 14 words, one sentence.
+- Cocky and smug, like a rival who knows they'll win. Quick jabs, not paragraphs.
+- React to the standing: if you're AHEAD, gloat and dare them to catch you; if you're BEHIND, warn them you're closing in fast.
+- School-appropriate: never mean, no insults about intelligence, no profanity. Trash talk the competition, not the person.
+- Do NOT praise them ("nice job", "great work" are banned). You're a competitor, not a coach.
+- Skip their name most of the time. Plain text, no markdown.
+Return JSON: {"rivalName":"Sammy","message":"..."}.`;
 
 const server = http.createServer(async (req, res) => {
   cors(res);
@@ -495,20 +538,28 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname === "/ai/rival" && req.method === "POST") {
       const body = await readBody(req);
-      const user = `Student: ${body.userName || "Student"}, XP ${body.userXp ?? 0}, rank ${
+      const standing =
+        body.rivalXp != null
+          ? `You (Sammy) have ${body.rivalXp} XP; ${body.userName || "the student"} has ${
+              body.userXp ?? 0
+            } XP, so you are ${
+              body.ahead ? `${body.gap ?? 0} XP AHEAD of them` : `${body.gap ?? 0} XP BEHIND them`
+            }.`
+          : `${body.userName || "The student"} has ${body.userXp ?? 0} XP.`;
+      const user = `Student name: ${body.userName || "Student"}. Rank ${
         body.rank ?? "?"
-      }, streak ${body.streak ?? 0}. Write a rival nudge.`;
+      }. Streak ${body.streak ?? 0} days. ${standing} Write your cocky rival line.`;
       const raw = await callModel({
         model: MODEL_FAST,
         system: RIVAL_SYSTEM,
         messages: [{ role: "user", content: user }],
-        maxTokens: 120,
+        maxTokens: 60,
         json: true,
       });
       const out = parseJsonReply(raw);
       sendJson(res, 200, {
-        rivalName: out.rivalName || "Riley R.",
-        message: out.message || "Catch me if you can!",
+        rivalName: out.rivalName || "Sammy",
+        message: out.message || "Catch me if you can.",
       });
       return;
     }

@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { Bot, Crown, Sparkles } from "lucide-react";
+import { Crown, Sparkles } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { aiAvailable, aiRival } from "@/lib/ai";
+import { RIVAL_AVATAR, RIVAL_NAME, rivalStanding } from "@/lib/aiPersona";
 import { updateUserProfile } from "@/services/users";
 import {
   fetchTopLeaderboard,
@@ -28,10 +29,9 @@ export function LeaderboardPage() {
   const [page, setPage] = useState(1);
   const [myRank, setMyRank] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Playful AI rival nudge — purely a client-side visual, never persisted.
-  const [rival, setRival] = useState<{ rivalName: string; message: string } | null>(
-    null
-  );
+  // Sammy's AI-written trash talk. The rival himself (XP + avatar) always shows;
+  // this is just optional flavor fetched when the AI proxy is up.
+  const [rivalMessage, setRivalMessage] = useState<string | null>(null);
   const rivalFetched = useRef(false);
   // Opt-out model: everyone is on the board unless they explicitly hid themselves.
   const optedIn = profile?.leaderboardOptIn !== false;
@@ -39,6 +39,10 @@ export function LeaderboardPage() {
   // The signed-in learner's XP for the active scope (weekly resets each week).
   const myXp =
     scope === "all" ? profile?.totalXp ?? 0 : effectiveWeeklyXp(profile);
+
+  // The rival's standing for the active scope: his XP tracks near the learner's
+  // and drifts up over real time, so going inactive lets him pull ahead.
+  const standing = useMemo(() => rivalStanding(myXp, scope), [myXp, scope]);
 
   // Reset to the first page whenever the scope tab changes.
   useEffect(() => {
@@ -99,18 +103,25 @@ export function LeaderboardPage() {
   // if the proxy is offline or the call throws, we simply render nothing extra.
   useEffect(() => {
     if (rivalFetched.current || !profile) return;
-    rivalFetched.current = true;
     let active = true;
     (async () => {
       try {
+        // Don't mark fetched until AI is confirmed up — otherwise a single early
+        // check while the proxy was offline would hide the rival for good.
         if (!(await aiAvailable())) return;
         const result = await aiRival({
           userName: profile.displayName,
-          userXp: profile.totalXp,
+          userXp: myXp,
           rank: myRank ?? undefined,
           streak: profile.streakCount,
+          rivalXp: standing.xp,
+          ahead: standing.ahead,
+          gap: standing.diff,
         });
-        if (active) setRival(result);
+        if (active) {
+          setRivalMessage(result.message);
+          rivalFetched.current = true;
+        }
       } catch {
         /* fail soft — leave the leaderboard untouched */
       }
@@ -157,13 +168,40 @@ export function LeaderboardPage() {
     return <LoadingScreen label="Loading the leaderboard..." />;
   }
 
-  const xpOf = (e: LeaderboardEntry) =>
-    scope === "all" ? e.totalXp ?? 0 : e.weeklyXp;
+  type DisplayRow = LeaderboardEntry & { isRival?: boolean };
 
-  const totalPages = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
+  const xpOf = (e: DisplayRow) => (scope === "all" ? e.totalXp ?? 0 : e.weeklyXp);
+
+  const rivalRow: DisplayRow = {
+    uid: "__rival__",
+    displayName: RIVAL_NAME,
+    weeklyXp: standing.xp,
+    totalXp: standing.xp,
+    avatarColor: "violet",
+    isRival: true,
+  };
+
+  // Drop Sammy into the ranked list at the position his XP earns.
+  const displayEntries: DisplayRow[] = [...entries, rivalRow].sort(
+    (a, b) => xpOf(b) - xpOf(a)
+  );
+
+  const totalPages = Math.max(1, Math.ceil(displayEntries.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const pageStart = (safePage - 1) * PAGE_SIZE;
-  const pageEntries = entries.slice(pageStart, pageStart + PAGE_SIZE);
+  const pageEntries = displayEntries.slice(pageStart, pageStart + PAGE_SIZE);
+
+  // Visual rank for the bottom "Your rank" card: bump by one when Sammy is ahead.
+  const myDisplayRank = myRank != null ? myRank + (standing.ahead ? 1 : 0) : null;
+
+  // What Sammy says: his AI trash talk when available, else a standing-based line.
+  const rivalLine =
+    rivalMessage ??
+    (standing.diff === 0
+      ? `Dead even with you. This is anyone's game.`
+      : standing.ahead
+        ? `I'm ${standing.diff} XP ahead of you now. Better get grinding.`
+        : `You're ${standing.diff} XP ahead of me... for now.`);
 
   return (
     <div className="min-h-dvh bg-canvas pb-24 text-ink sm:pb-12">
@@ -228,29 +266,41 @@ export function LeaderboardPage() {
           </button>
         </div>
 
-        {rival && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="card flex items-center gap-3 border border-violet/40 bg-violet/10 p-4"
-          >
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-violet text-base font-bold text-white shadow-soft">
-              {rival.rivalName.trim().charAt(0).toUpperCase() || (
-                <Bot className="h-5 w-5" aria-hidden="true" />
-              )}
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <p className="truncate text-sm font-bold">{rival.rivalName}</p>
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-pill bg-violet/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet">
-                  <Sparkles className="h-3 w-3" aria-hidden="true" />
-                  AI
-                </span>
-              </div>
-              <p className="mt-0.5 text-xs text-ink/70">{rival.message}</p>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="card flex items-center gap-3 border border-violet/40 bg-violet/10 p-4"
+        >
+          <img
+            src={RIVAL_AVATAR}
+            alt={`${RIVAL_NAME} the AI rival`}
+            className="h-12 w-12 shrink-0 rounded-full object-cover shadow-soft ring-2 ring-violet/50"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <p className="truncate text-sm font-bold">{RIVAL_NAME}</p>
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-pill bg-violet/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet">
+                <Sparkles className="h-3 w-3" aria-hidden="true" />
+                AI rival
+              </span>
+              <span
+                className={`ml-auto shrink-0 rounded-pill px-2 py-0.5 text-[10px] font-bold ${
+                  standing.ahead
+                    ? "bg-danger/15 text-danger"
+                    : "bg-correct/15 text-correct"
+                }`}
+              >
+                {standing.diff === 0
+                  ? "tied"
+                  : standing.ahead
+                    ? `+${standing.diff} ahead`
+                    : `${standing.diff} behind`}
+              </span>
             </div>
-          </motion.div>
-        )}
+            <p className="mt-0.5 text-xs font-semibold text-violet">{standing.xp} XP</p>
+            <p className="mt-0.5 text-xs text-ink/70">{rivalLine}</p>
+          </div>
+        </motion.div>
 
         {error ? (
           <div className="card border border-danger/40 bg-danger/10 p-5 text-sm">
@@ -267,7 +317,7 @@ export function LeaderboardPage() {
               </p>
             )}
           </div>
-        ) : entries.length === 0 ? (
+        ) : displayEntries.length === 0 ? (
           <div className="card p-8 text-center text-sm text-ink/70">
             No one&apos;s on the board yet. Be the first to join!
           </div>
@@ -278,6 +328,7 @@ export function LeaderboardPage() {
                 const globalIndex = pageStart + i;
                 const rank = globalIndex + 1;
                 const isMe = e.uid === user?.uid;
+                const isRival = e.isRival === true;
                 return (
                   <motion.li
                     key={e.uid}
@@ -286,7 +337,11 @@ export function LeaderboardPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: Math.min(i * 0.03, 0.5) }}
                     className={`flex items-center gap-3 rounded-card border p-3 ${
-                      isMe ? "border-accent/50 bg-accent/10" : "border-white/5 bg-surface"
+                      isMe
+                        ? "border-accent/50 bg-accent/10"
+                        : isRival
+                          ? "border-violet/40 bg-violet/10"
+                          : "border-white/5 bg-surface"
                     }`}
                   >
                     <span
@@ -304,17 +359,35 @@ export function LeaderboardPage() {
                         rank
                       )}
                     </span>
-                    <span
-                      style={{ backgroundImage: gradientCss(e.avatarColor) }}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
-                    >
-                      {e.avatarEmoji || (e.displayName || "L").charAt(0).toUpperCase()}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                    {isRival ? (
+                      <img
+                        src={RIVAL_AVATAR}
+                        alt=""
+                        className="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-violet/50"
+                      />
+                    ) : (
+                      <span
+                        style={{ backgroundImage: gradientCss(e.avatarColor) }}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+                      >
+                        {e.avatarEmoji || (e.displayName || "L").charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                    <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-sm font-semibold">
                       {e.displayName || "Anonymous learner"}
-                      {isMe && <span className="ml-1 text-xs text-accent">(you)</span>}
+                      {isMe && <span className="text-xs text-accent">(you)</span>}
+                      {isRival && (
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-pill bg-violet/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-violet">
+                          <Sparkles className="h-2.5 w-2.5" aria-hidden="true" />
+                          AI
+                        </span>
+                      )}
                     </span>
-                    <span className="text-sm font-extrabold text-accent">
+                    <span
+                      className={`text-sm font-extrabold ${
+                        isRival ? "text-violet" : "text-accent"
+                      }`}
+                    >
                       {xpOf(e)} XP
                     </span>
                   </motion.li>
@@ -364,7 +437,7 @@ export function LeaderboardPage() {
               className="flex items-center gap-3 rounded-card border border-accent/50 bg-accent/10 p-3"
             >
               <span className="flex w-7 items-center justify-center text-sm font-extrabold text-accent">
-                {myRank ?? "—"}
+                {myDisplayRank ?? "—"}
               </span>
               <span
                 style={{ backgroundImage: gradientCss(profile?.avatarColor) }}

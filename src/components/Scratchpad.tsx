@@ -6,6 +6,7 @@ import {
 } from "react";
 import { Sparkles } from "lucide-react";
 import { aiScratchpad, type ProblemContext } from "@/lib/ai";
+import { AI_NAME } from "@/lib/aiPersona";
 
 interface ScratchpadProps {
   onClose: () => void;
@@ -45,7 +46,7 @@ export function Scratchpad({ onClose, problem, aiEnabled }: ScratchpadProps) {
       const dataUrl = tmp.toDataURL("image/jpeg", 0.85);
       setFeedback(await aiScratchpad(dataUrl, problem));
     } catch {
-      setFeedback("Couldn't reach the tutor. Make sure the AI server is running (npm run ai).");
+      setFeedback(`Couldn't reach ${AI_NAME}. Make sure the AI server is running (npm run ai).`);
     } finally {
       setBusy(false);
     }
@@ -177,7 +178,7 @@ export function Scratchpad({ onClose, problem, aiEnabled }: ScratchpadProps) {
               className="btn flex-1 border border-accent/40 bg-accent/10 py-2.5 text-sm text-accent hover:bg-accent/20 disabled:opacity-60"
             >
               <Sparkles className="h-4 w-4" aria-hidden="true" />
-              {busy ? "Checking…" : "Check my work"}
+              {busy ? "Checking…" : `${AI_NAME}: check my work`}
             </button>
           )}
           <button type="button" onClick={onClose} className="btn-primary flex-1 py-2.5 text-sm">

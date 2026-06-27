@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Sparkles, Send, X } from "lucide-react";
 import { aiTutor, type ChatMessage, type ProblemContext } from "@/lib/ai";
+import { AI_NAME } from "@/lib/aiPersona";
 
 interface AiTutorPanelProps {
   problem: ProblemContext;
@@ -48,7 +49,7 @@ export function AiTutorPanel({ problem, onClose }: AiTutorPanelProps) {
       const reply = await aiTutor(problem, next);
       setMessages([...next, { role: "assistant", content: reply }]);
     } catch {
-      setError("The tutor is offline right now. Make sure the AI server is running (npm run ai).");
+      setError(`${AI_NAME} is offline right now. Make sure the AI server is running (npm run ai).`);
     } finally {
       setBusy(false);
     }
@@ -71,8 +72,8 @@ export function AiTutorPanel({ problem, onClose }: AiTutorPanelProps) {
               <Sparkles className="h-4 w-4" />
             </span>
             <div className="flex flex-col">
-              <span className="text-sm font-bold leading-tight">AI Tutor</span>
-              <span className="text-[11px] text-ink/55">Here to help with this question</span>
+              <span className="text-sm font-bold leading-tight">{AI_NAME}</span>
+              <span className="text-[11px] text-ink/55">Your AI coach · here to help</span>
             </div>
           </div>
           <button
@@ -153,7 +154,7 @@ export function AiTutorPanel({ problem, onClose }: AiTutorPanelProps) {
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask the tutor…"
+            placeholder={`Ask ${AI_NAME}…`}
             className="flex-1 rounded-pill bg-surface-2 px-4 py-2.5 text-sm text-ink outline-none ring-accent/50 placeholder:text-ink/40 focus:ring-2"
           />
           <button

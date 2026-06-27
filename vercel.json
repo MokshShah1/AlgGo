@@ -1,0 +1,16 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "functions": {
+    "api/proxy.js": {
+      "maxDuration": 60
+    }
+  },
+  "rewrites": [
+    { "source": "/health", "destination": "/api/proxy?route=health" },
+    { "source": "/ai/:path*", "destination": "/api/proxy?route=:path*" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
+}

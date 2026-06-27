@@ -9,7 +9,12 @@
 
 const env = import.meta.env;
 
-const AI_URL = (env.VITE_AI_URL || "http://localhost:8787").replace(/\/$/, "");
+// In production the proxy is a Firebase Function reached same-origin via Hosting
+// rewrites (/ai/** and /health), so the base URL is empty (relative). In dev it's
+// the local proxy on :8787. VITE_AI_URL overrides both when set.
+const AI_URL = (
+  env.VITE_AI_URL ?? (env.PROD ? "" : "http://localhost:8787")
+).replace(/\/$/, "");
 
 export interface ProblemContext {
   lessonTitle?: string;
@@ -29,23 +34,34 @@ export interface ChatMessage {
 
 let probe: Promise<boolean> | null = null;
 
-/** Whether the AI proxy is reachable AND has a key configured. Cached. */
+/**
+ * Whether the AI proxy is reachable AND has a key configured.
+ *
+ * Only a *successful* probe is cached. If the proxy is offline/unconfigured (or
+ * the check throws), the cache is cleared so the next call re-probes — that way
+ * AI features self-heal once the proxy comes up, without needing a full reload.
+ */
 export function aiAvailable(): Promise<boolean> {
   if (probe) return probe;
-  probe = (async () => {
+  const attempt = (async () => {
     try {
       const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 1500);
+      const t = setTimeout(() => controller.abort(), 2500);
       const res = await fetch(`${AI_URL}/health`, { signal: controller.signal });
       clearTimeout(t);
-      if (!res.ok) return false;
-      const data = (await res.json()) as { ok?: boolean; configured?: boolean };
-      return Boolean(data.ok && data.configured);
+      const data = res.ok
+        ? ((await res.json()) as { ok?: boolean; configured?: boolean })
+        : null;
+      const ok = Boolean(data?.ok && data?.configured);
+      if (!ok) probe = null; // allow a retry on the next call
+      return ok;
     } catch {
+      probe = null; // transient failure — don't poison future checks
       return false;
     }
   })();
-  return probe;
+  probe = attempt;
+  return attempt;
 }
 
 /** One progressive hint for the current problem. Throws on failure. */
@@ -189,6 +205,12 @@ export interface RivalPayload {
   userXp?: number;
   rank?: number;
   streak?: number;
+  /** The rival's current XP, so the message matches the real standing. */
+  rivalXp?: number;
+  /** True when the rival is ahead of the learner. */
+  ahead?: boolean;
+  /** Absolute XP gap between rival and learner. */
+  gap?: number;
 }
 
 /** A playful AI rival nudge for the leaderboard. */
@@ -200,7 +222,7 @@ export async function aiRival(
     payload
   );
   return {
-    rivalName: data.rivalName ?? "Riley R.",
-    message: data.message ?? "Catch me if you can!",
+    rivalName: data.rivalName ?? "Sammy",
+    message: data.message ?? "Catch me if you can.",
   };
 }

@@ -1,0 +1,13 @@
+{
+  "name": "alggo-functions",
+  "description": "AlgGo AI proxy Cloud Function",
+  "type": "module",
+  "main": "index.js",
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "firebase-functions": "^6.1.0"
+  },
+  "private": true
+}

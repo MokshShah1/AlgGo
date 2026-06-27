@@ -4,8 +4,51 @@ import { Camera, ImageUp, Loader2, RefreshCw, Sparkles, X } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { AiProblemRunner } from "@/features/ai/AiProblemRunner";
 import { aiAvailable, aiVision, type AiGeneratedProblem } from "@/lib/ai";
+import { AI_NAME } from "@/lib/aiPersona";
 
 type Phase = "upload" | "solving";
+
+/**
+ * Downscale a photo to a max dimension and re-encode as JPEG so the upload stays
+ * small and fast (phone photos are often 3-12 MB raw). Falls back to the raw data
+ * URL if anything goes wrong.
+ */
+function downscaleImage(file: File, maxDim = 1600, quality = 0.85): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read failed"));
+    reader.onload = () => {
+      const raw = typeof reader.result === "string" ? reader.result : "";
+      if (!raw) {
+        reject(new Error("empty image"));
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(raw);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, w, h);
+        try {
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        } catch {
+          resolve(raw);
+        }
+      };
+      img.onerror = () => resolve(raw);
+      img.src = raw;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 export function SnapProblemPage() {
   const [available, setAvailable] = useState<boolean | null>(null);
@@ -31,17 +74,15 @@ export function SnapProblemPage() {
     };
   }, []);
 
-  function handleFile(file: File | undefined) {
+  async function handleFile(file: File | undefined) {
     if (!file) return;
     setError(null);
-    const reader = new FileReader();
-    reader.onload = () => {
-      setDataUrl(typeof reader.result === "string" ? reader.result : null);
-    };
-    reader.onerror = () => {
+    try {
+      const url = await downscaleImage(file);
+      setDataUrl(url);
+    } catch {
       setError("Couldn't read that image. Try a different photo.");
-    };
-    reader.readAsDataURL(file);
+    }
   }
 
   async function readAndSolve() {
@@ -99,7 +140,7 @@ export function SnapProblemPage() {
           <div className="min-w-0">
             <h1 className="text-2xl font-bold md:text-3xl">Snap a problem</h1>
             <p className="mt-1 text-sm text-ink/70">
-              Take a photo of any math problem and the AI tutor turns it into an
+              Take a photo of any math problem and {AI_NAME} turns it into an
               interactive practice question — solve it right here.
             </p>
           </div>
@@ -112,7 +153,7 @@ export function SnapProblemPage() {
             transition={{ duration: 0.3, ease: "easeOut" }}
             className="card flex flex-col gap-1 border border-hint/40 bg-hint/10 p-4"
           >
-            <p className="text-sm font-bold text-hint">The AI tutor is offline</p>
+            <p className="text-sm font-bold text-hint">{AI_NAME} is offline</p>
             <p className="text-xs text-ink/70">
               Start it locally by running{" "}
               <code className="rounded bg-ink/10 px-1.5 py-0.5 font-mono text-[11px]">

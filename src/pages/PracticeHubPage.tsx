@@ -3,6 +3,7 @@ import { motion } from "motion/react";
 import { ArrowRight, Camera } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { PracticeHub } from "@/features/dashboard/PracticeHub";
+import { AI_NAME } from "@/lib/aiPersona";
 
 export function PracticeHubPage() {
   return (
@@ -33,7 +34,7 @@ export function PracticeHubPage() {
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="text-sm font-bold leading-tight">Snap a problem</span>
               <span className="text-xs text-ink/55">
-                Photograph any math problem and solve it interactively with the AI tutor
+                Photograph any math problem and solve it interactively with {AI_NAME}
               </span>
             </span>
             <ArrowRight className="h-5 w-5 shrink-0 text-accent" aria-hidden="true" />

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { ScrollText, Sparkles } from "lucide-react";
 import { aiAvailable, aiRecap } from "@/lib/ai";
+import { AI_NAME } from "@/lib/aiPersona";
 
 interface RecapCardProps {
   lessonTitle: string;
@@ -54,8 +55,9 @@ export function RecapCard({ lessonTitle, score, mastered, toReview }: RecapCardP
         <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-violet to-accent text-white shadow-soft">
           <ScrollText className="h-4 w-4" />
         </span>
-        <span className="text-xs font-semibold uppercase tracking-wide text-ink/60">
-          Your recap
+        <span className="text-xs font-bold tracking-wide text-ink">
+          {AI_NAME}
+          <span className="ml-1.5 font-semibold uppercase text-ink/45">recap</span>
         </span>
         <Sparkles className="h-3.5 w-3.5 text-violet" aria-hidden="true" />
       </div>

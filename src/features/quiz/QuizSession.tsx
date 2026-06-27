@@ -12,6 +12,7 @@ import { getLesson } from "@/content/course";
 import { AiTutorPanel } from "@/features/ai/AiTutorPanel";
 import { ReasoningBox } from "@/features/ai/ReasoningBox";
 import { aiAvailable, aiHint, aiExplain, type ProblemContext } from "@/lib/ai";
+import { AI_NAME } from "@/lib/aiPersona";
 import { CONCEPT_LABELS } from "@/types/concepts";
 import { VideoLesson } from "@/features/lesson/components/VideoLesson";
 import { XP_PER_SOLVABLE } from "@/features/scoring/constants";
@@ -151,7 +152,7 @@ export function QuizSession({
     try {
       setExplainText(await aiExplain(buildProblemContext()));
     } catch {
-      setExplainText("Couldn't reach the tutor. Make sure the AI server is running (npm run ai).");
+      setExplainText(`Couldn't reach ${AI_NAME}. Make sure the AI server is running (npm run ai).`);
     } finally {
       setExplainBusy(false);
     }
@@ -804,7 +805,7 @@ export function QuizSession({
                 className="btn w-full border border-accent/40 bg-accent/5 py-3 text-sm text-accent hover:bg-accent/10 disabled:opacity-60"
               >
                 <Sparkles className="h-5 w-5" aria-hidden="true" />
-                Explain my mistake
+                {AI_NAME}: explain my mistake
               </button>
             )}
 
@@ -832,7 +833,7 @@ export function QuizSession({
                     className="flex items-center gap-1 font-semibold text-accent/80 transition-colors hover:text-accent"
                   >
                     <Sparkles className="h-4 w-4" aria-hidden="true" />
-                    AI tutor
+                    Ask {AI_NAME}
                   </button>
                 )}
               </div>
