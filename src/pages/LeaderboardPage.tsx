@@ -3,7 +3,7 @@ import { motion } from "motion/react";
 import { Crown, Sparkles } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { aiAvailable, aiRival } from "@/lib/ai";
-import { RIVAL_AVATAR, RIVAL_NAME, rivalStanding } from "@/lib/aiPersona";
+import { RIVAL_AVATAR, RIVAL_NAME, rivalStandings } from "@/lib/aiPersona";
 import { updateUserProfile } from "@/services/users";
 import {
   fetchTopLeaderboard,
@@ -36,13 +36,19 @@ export function LeaderboardPage() {
   // Opt-out model: everyone is on the board unless they explicitly hid themselves.
   const optedIn = profile?.leaderboardOptIn !== false;
 
-  // The signed-in learner's XP for the active scope (weekly resets each week).
-  const myXp =
-    scope === "all" ? profile?.totalXp ?? 0 : effectiveWeeklyXp(profile);
+  // The signed-in learner's XP per scope (weekly resets each week).
+  const myTotalXp = profile?.totalXp ?? 0;
+  const myWeeklyXp = effectiveWeeklyXp(profile);
+  const myXp = scope === "all" ? myTotalXp : myWeeklyXp;
 
-  // The rival's standing for the active scope: his XP tracks near the learner's
-  // and drifts up over real time, so going inactive lets him pull ahead.
-  const standing = useMemo(() => rivalStanding(myXp, scope), [myXp, scope]);
+  // The rival's standing for BOTH scopes (computed together so weekly can never
+  // exceed all-time). His XP tracks near the learner's and drifts up over real
+  // time, so going inactive lets him pull ahead.
+  const standings = useMemo(
+    () => rivalStandings(myTotalXp, myWeeklyXp),
+    [myTotalXp, myWeeklyXp]
+  );
+  const standing = scope === "all" ? standings.all : standings.week;
 
   // Reset to the first page whenever the scope tab changes.
   useEffect(() => {
@@ -175,8 +181,8 @@ export function LeaderboardPage() {
   const rivalRow: DisplayRow = {
     uid: "__rival__",
     displayName: RIVAL_NAME,
-    weeklyXp: standing.xp,
-    totalXp: standing.xp,
+    weeklyXp: standings.week.xp,
+    totalXp: standings.all.xp,
     avatarColor: "violet",
     isRival: true,
   };
