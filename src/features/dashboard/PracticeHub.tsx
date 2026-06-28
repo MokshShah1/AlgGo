@@ -9,6 +9,7 @@ import {
   Calculator,
   SlidersHorizontal,
   LineChart,
+  History,
   type LucideIcon,
 } from "lucide-react";
 
@@ -20,7 +21,8 @@ type Glyph =
   | "mistakes"
   | "word"
   | "sandbox"
-  | "progress";
+  | "progress"
+  | "history";
 
 interface HubItem {
   to: string;
@@ -60,6 +62,13 @@ const ITEMS: HubItem[] = [
     description: "Redo the questions you've missed",
     glyph: "mistakes",
     accent: "from-danger to-hint",
+  },
+  {
+    to: "/review",
+    title: "History",
+    description: "Revisit and redo your past attempts",
+    glyph: "history",
+    accent: "from-secondary to-hint",
   },
   {
     to: "/word-problems",
@@ -144,6 +153,7 @@ const GLYPHS: Record<Glyph, LucideIcon> = {
   word: Calculator,
   sandbox: SlidersHorizontal,
   progress: LineChart,
+  history: History,
 };
 
 function HubGlyph({ glyph }: { glyph: Glyph }) {

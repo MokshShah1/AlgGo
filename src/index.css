@@ -11,6 +11,8 @@
     --c-ink: 234 238 247;
     --c-accent: 109 123 255;
     --c-accent-dark: 85 99 240;
+    --c-secondary: 255 145 77;
+    --c-secondary-dark: 240 120 52;
     --c-violet: 156 140 255;
     --c-correct: 43 193 114;
     --c-hint: 240 163 60;
@@ -23,14 +25,16 @@
     color-scheme: dark;
   }
 
-  /* Light theme: applied when <html class="light"> is set. */
+  /* Light theme: applied when <html class="light"> is set. Warmed off-white. */
   html.light {
-    --c-canvas: 244 246 251;
+    --c-canvas: 248 246 242;
     --c-surface: 255 255 255;
-    --c-surface-2: 238 241 248;
-    --c-ink: 24 31 46;
+    --c-surface-2: 244 240 233;
+    --c-ink: 26 30 42;
     --c-accent: 85 99 240;
     --c-accent-dark: 67 80 214;
+    --c-secondary: 226 116 40;
+    --c-secondary-dark: 196 94 24;
     --c-violet: 124 108 230;
     --c-correct: 21 160 90;
     --c-hint: 200 128 24;
@@ -94,6 +98,9 @@
   .btn-primary {
     @apply btn bg-accent text-white shadow-pop hover:bg-accent-dark hover:-translate-y-0.5;
   }
+  .btn-secondary {
+    @apply btn bg-secondary text-white shadow-warm hover:bg-secondary-dark hover:-translate-y-0.5;
+  }
   .btn-correct {
     @apply btn bg-correct text-white shadow-[0_8px_30px_-8px_rgba(21,160,90,0.5)] hover:-translate-y-0.5;
   }
@@ -102,7 +109,12 @@
   }
 
   .card {
-    @apply rounded-card border border-ink/5 bg-surface shadow-card;
+    @apply rounded-card border border-ink/[0.07] bg-surface shadow-card;
+  }
+
+  /* Consistent small section header used across pages. */
+  .section-label {
+    @apply text-xs font-semibold uppercase tracking-[0.08em] text-ink/55;
   }
 
   /* Text input / field base */

@@ -13,6 +13,9 @@ export default {
         ink: "rgb(var(--c-ink) / <alpha-value>)",
         accent: "rgb(var(--c-accent) / <alpha-value>)",
         "accent-dark": "rgb(var(--c-accent-dark) / <alpha-value>)",
+        // Warm secondary accent — used for streaks, energy, and warm CTAs.
+        secondary: "rgb(var(--c-secondary) / <alpha-value>)",
+        "secondary-dark": "rgb(var(--c-secondary-dark) / <alpha-value>)",
         violet: "rgb(var(--c-violet) / <alpha-value>)",
         correct: "rgb(var(--c-correct) / <alpha-value>)",
         hint: "rgb(var(--c-hint) / <alpha-value>)",
@@ -36,9 +39,10 @@ export default {
         pill: "999px",
       },
       boxShadow: {
-        card: "0 1px 2px rgba(0,0,0,0.3), 0 12px 30px -16px rgba(0,0,0,0.6)",
+        card: "0 1px 2px rgba(0,0,0,0.16), 0 10px 26px -18px rgba(0,0,0,0.5)",
         pop: "0 10px 34px -8px rgba(109,123,255,0.55)",
-        soft: "0 2px 12px rgba(0,0,0,0.35)",
+        warm: "0 10px 30px -10px rgba(255,140,70,0.5)",
+        soft: "0 2px 12px rgba(0,0,0,0.28)",
       },
       keyframes: {
         "fade-in": {

@@ -293,33 +293,41 @@ Rules:
 - Keep it under ~90 words.`;
 
 const REASONING_SYSTEM = `You judge an 8th grader's written reasoning for a slope/linear-relationships problem.
-Decide if their thinking shows real understanding (not just the final number).
+Judge ONLY the math thinking — does it show real understanding (not just the final number)?
 Return JSON: {"verdict":"solid"|"partial"|"off","feedback":"1-2 warm, specific sentences"}.
-- "solid": reasoning is correct and complete.
-- "partial": right idea but a gap or small error.
-- "off": key misunderstanding.
-Be encouraging and specific about what was good or missing.`;
+- "solid": the mathematical reasoning is correct and complete. Give this even if the writing is short, informal, or has spelling/grammar/typos.
+- "partial": the MATH has a real gap, missing step, or small mathematical error.
+- "off": a key mathematical misunderstanding.
+NEVER lower the verdict or mention spelling, grammar, punctuation, capitalization, phrasing, or "be clearer/more detailed." This is a math class, not English. If the math is right, it's "solid".
+Feedback must be about the math only. Be warm and specific about what was right or what math was missing.`;
+
+const CHECK_SPEC = `Every problem MUST be machine-checkable: include a "check" object with the exact integer inputs, and make the answer equal the value computed from it.
+Allowed "check" types (use ONLY these):
+- {"type":"slope_from_points","x1":N,"y1":N,"x2":N,"y2":N}   value = (y2-y1)/(x2-x1), require x1 != x2
+- {"type":"evaluate_linear","m":N,"b":N,"x":N}               value = m*x + b
+- {"type":"identify","field":"slope"|"intercept","m":N,"b":N} value = m (slope) or b (intercept) of y = m x + b
+- {"type":"rate","deltaY":N,"deltaX":N}                       value = deltaY/deltaX, require deltaX != 0
+Verification rules (your output is auto-checked and dropped if it fails):
+- numeric: "answer" (plain string like "3", "-2", "2/3") MUST equal the computed value.
+- choice: ALL options must be plain numbers/fractions, exactly ONE equals the computed value, and correctIndex points to it.
+- Use small, grade-appropriate integers. The prompt's wording must match the check's numbers.`;
 
 const DAILY_SYSTEM = `You generate a short personalized practice set for an 8th grader on linear relationships (slope, rate of change, y = mx + b).
 Target the student's weak concepts and recent mistakes when given.
 Return JSON ONLY in this exact shape:
 {"problems":[
-  {"kind":"numeric","prompt":"...","answer":"3","hint":"...","explanation":"..."},
-  {"kind":"choice","prompt":"...","options":["...","...","..."],"correctIndex":0,"explanation":"..."}
+  {"kind":"numeric","prompt":"...","answer":"-2","check":{"type":"slope_from_points","x1":1,"y1":5,"x2":3,"y2":1},"hint":"...","explanation":"..."},
+  {"kind":"choice","prompt":"...","options":["1","3","5","7"],"correctIndex":1,"check":{"type":"evaluate_linear","m":2,"b":-1,"x":2},"explanation":"..."}
 ]}
-Rules:
-- Use ONLY kinds "numeric" and "choice".
-- numeric "answer" is a plain string like "3", "-2", or a fraction like "2/3".
-- choice has 3-4 options and a 0-based correctIndex.
-- Grade-appropriate, clear, and varied. No markdown.`;
+${CHECK_SPEC}
+- Use ONLY kinds "numeric" and "choice". choice has 3-4 options, 0-based correctIndex. No markdown.`;
 
-const VISION_SYSTEM = `You read a math problem from a photo (it may be handwritten or printed) and turn it into one interactive practice problem about linear relationships for an 8th grader.
+const VISION_SYSTEM = `You read a math problem from a photo (it may be handwritten or printed) and turn it into one machine-checkable interactive practice problem about linear relationships for an 8th grader.
 Return JSON ONLY:
-{"readText":"the problem you read","problem":{"kind":"numeric"|"choice","prompt":"...","answer":"...","options":["..."],"correctIndex":0,"hint":"...","explanation":"..."}}
-Rules:
-- Prefer "numeric" when the answer is a number/fraction; use "choice" (3-4 options, 0-based correctIndex) otherwise.
-- For numeric include "answer" as a plain string; omit options. For choice include options+correctIndex; omit answer.
-- If the image has no readable math problem, return {"error":"no problem found"}.
+{"readText":"the problem you read","problem":{"kind":"numeric"|"choice","prompt":"...","answer":"...","options":["..."],"correctIndex":0,"check":{...},"hint":"...","explanation":"..."}}
+${CHECK_SPEC}
+- For numeric include "answer" and omit options; for choice include options+correctIndex and omit answer.
+- If the image has no problem you can express with one of the allowed check types, return {"error":"no problem found"}.
 - No markdown.`;
 
 const SCRATCH_SYSTEM = `You are AlgGo's tutor looking at a photo of an 8th grader's scratch work for a slope/linear-relationships problem.

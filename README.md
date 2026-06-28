@@ -6,6 +6,8 @@
 > **Chapter:** Slope, Graphing Lines, and `y = mx + b`
 > **Flagship lesson:** Slope = Rise / Run
 
+> **📄 Docs:** [Brainlift](./BRAINLIFT.md) · [Demo script](./DEMO_SCRIPT.md)
+
 AlgGo is a learn-by-doing web app that teaches **one** chapter of 8th
 grade algebra deeply through interactive, visual problem solving. Drag points on
 a coordinate plane, watch the line and rise/run triangle update live, and learn
@@ -133,6 +135,19 @@ top of the authored curriculum rather than generating the lessons themselves.
 > **Voice narration:** the optional "Teach me" mini-lessons read the authored
 > explanation aloud using a text-to-speech voice (this converts the hand-written
 > text to audio — it does not generate lesson content).
+
+#### Deterministic verification of AI-generated math
+
+The two features that *generate* problems — the personalized daily set and
+Snap-a-problem — never trust the model's word for what the answer is. Every
+generated problem must carry a machine-checkable `check` spec (e.g.
+`{ type: "slope_from_points", x1, y1, x2, y2 }`). Before anything reaches the
+learner, `src/features/ai/verifyProblem.ts` **recomputes** the answer from that
+spec with plain slope math and confirms the stated answer (or the marked-correct
+option, with a uniqueness check) actually matches. Anything that fails — or has
+no checkable spec — is dropped: the daily set silently filters it out, and
+Snap-a-problem shows a "couldn't verify the math" message instead of a
+potentially wrong question. This is the ground-truth gate around AI content.
 
 ## Voice / TTS narration
 
