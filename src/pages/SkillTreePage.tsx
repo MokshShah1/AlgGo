@@ -1,8 +1,18 @@
+import { useEffect, useState } from "react";
+import { useAuth } from "@/features/auth/AuthContext";
 import { useLearnerData } from "@/features/progress/useLearnerData";
+import { fetchRecentAttempts } from "@/services/attempts";
+import { fetchReviewSchedules } from "@/services/reviewSchedule";
+import {
+  computeAllStrengths,
+  type ConceptStrength,
+  type StrengthLabel,
+} from "@/features/practice/masteryStrength";
 import { AppHeader } from "@/components/AppHeader";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { CONCEPT_LABELS, type ConceptId } from "@/types/concepts";
-import { MASTERY_LABELS, type MasteryLevel } from "@/types/mastery";
+import type { Attempt } from "@/types/attempt";
+import type { ReviewSchedule } from "@/types/review";
 
 interface Node {
   id: ConceptId;
@@ -30,13 +40,15 @@ const EDGES: [ConceptId, ConceptId][] = [
   ["slope-ratio", "constant-slope"],
 ];
 
-function nodeStyle(level: MasteryLevel): string {
-  switch (level) {
-    case 3:
+function nodeStyle(label: StrengthLabel): string {
+  switch (label) {
+    case "Mastered":
       return "border-transparent bg-gradient-to-br from-accent to-violet text-white shadow-pop";
-    case 2:
+    case "Strong":
       return "border-accent/60 bg-accent/15 text-ink";
-    case 1:
+    case "Familiar":
+      return "border-sky/50 bg-sky/10 text-ink";
+    case "Learning":
       return "border-hint/50 bg-hint/10 text-ink";
     default:
       return "border-white/10 bg-surface-2 text-ink/50";
@@ -44,13 +56,46 @@ function nodeStyle(level: MasteryLevel): string {
 }
 
 export function SkillTreePage() {
+  const { user } = useAuth();
   const { mastery, loading } = useLearnerData();
-  if (loading) return <LoadingScreen label="Loading your skill map..." />;
+  const [attempts, setAttempts] = useState<Attempt[]>([]);
+  const [schedules, setSchedules] = useState<ReviewSchedule[]>([]);
+  const [extrasLoaded, setExtrasLoaded] = useState(false);
 
-  const levelOf = (id: ConceptId): MasteryLevel =>
-    (mastery.find((m) => m.conceptId === id)?.level ?? 0) as MasteryLevel;
+  useEffect(() => {
+    let active = true;
+    if (!user) {
+      setExtrasLoaded(true);
+      return;
+    }
+    Promise.all([
+      fetchRecentAttempts(user.uid, { max: 300 }),
+      fetchReviewSchedules(user.uid),
+    ])
+      .then(([a, s]) => {
+        if (!active) return;
+        setAttempts(a);
+        setSchedules(s);
+      })
+      .catch(() => {})
+      .finally(() => active && setExtrasLoaded(true));
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
+  if (loading || !extrasLoaded) {
+    return <LoadingScreen label="Loading your skill map..." />;
+  }
+
+  const strengths = computeAllStrengths(mastery, attempts, schedules);
+  const byId = new Map<ConceptId, ConceptStrength>(
+    strengths.map((s) => [s.conceptId, s])
+  );
+  const get = (id: ConceptId) =>
+    byId.get(id) ?? { strength: 0, label: "New" as StrengthLabel, representations: [] };
   const pos = (id: ConceptId) => NODES.find((n) => n.id === id)!;
+  const masteredCount = strengths.filter((s) => s.label === "Mastered").length;
 
   return (
     <div className="min-h-dvh bg-canvas pb-24 text-ink sm:pb-12">
@@ -62,8 +107,9 @@ export function SkillTreePage() {
           </span>
           <h1 className="text-2xl font-bold md:text-3xl">Your concept tree</h1>
           <p className="text-sm text-ink/70">
-            Concepts light up as you master them. Earlier skills unlock the ones
-            that build on them.
+            Each concept shows a live mastery score that blends accuracy, spaced
+            reviews, and whether you can handle it across graphs, tables, and
+            numbers. {masteredCount} of {strengths.length} mastered.
           </p>
         </div>
 
@@ -78,7 +124,7 @@ export function SkillTreePage() {
               {EDGES.map(([from, to]) => {
                 const a = pos(from);
                 const b = pos(to);
-                const lit = levelOf(from) >= 2 && levelOf(to) >= 1;
+                const lit = get(from).strength >= 60 && get(to).strength > 0;
                 return (
                   <line
                     key={`${from}-${to}`}
@@ -94,7 +140,7 @@ export function SkillTreePage() {
             </svg>
 
             {NODES.map((n) => {
-              const level = levelOf(n.id);
+              const s = get(n.id);
               return (
                 <div
                   key={n.id}
@@ -102,14 +148,26 @@ export function SkillTreePage() {
                   style={{ left: `${n.x}%`, top: `${n.y}%` }}
                 >
                   <div
-                    className={`flex w-24 flex-col items-center gap-1 rounded-card border p-2 text-center transition-transform hover:scale-105 sm:w-32 ${nodeStyle(level)}`}
+                    className={`flex w-24 flex-col items-center gap-1 rounded-card border p-2 text-center transition-transform hover:scale-105 sm:w-32 ${nodeStyle(s.label)}`}
                   >
                     <span className="text-[10px] font-bold leading-tight sm:text-xs">
                       {CONCEPT_LABELS[n.id]}
                     </span>
                     <span className="text-[9px] font-semibold opacity-80">
-                      {MASTERY_LABELS[level]}
+                      {s.label} · {s.strength}
                     </span>
+                    <div className="flex gap-0.5" aria-hidden="true">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <span
+                          key={i}
+                          className={`h-1 w-1.5 rounded-full ${
+                            i < s.representations.length
+                              ? "bg-current opacity-90"
+                              : "bg-current opacity-25"
+                          }`}
+                        />
+                      ))}
+                    </div>
                   </div>
                 </div>
               );
@@ -119,9 +177,19 @@ export function SkillTreePage() {
 
         <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-ink/60">
           <LegendDot className="bg-gradient-to-br from-accent to-violet" label="Mastered" />
-          <LegendDot className="bg-accent/40" label="Practicing" />
-          <LegendDot className="bg-hint/40" label="Introduced" />
-          <LegendDot className="bg-surface-2 border border-white/10" label="Locked" />
+          <LegendDot className="bg-accent/40" label="Strong" />
+          <LegendDot className="bg-sky/40" label="Familiar" />
+          <LegendDot className="bg-hint/40" label="Learning" />
+          <LegendDot className="bg-surface-2 border border-white/10" label="New" />
+          <span className="flex items-center gap-1.5">
+            <span className="flex gap-0.5">
+              <span className="h-1 w-1.5 rounded-full bg-ink/70" />
+              <span className="h-1 w-1.5 rounded-full bg-ink/70" />
+              <span className="h-1 w-1.5 rounded-full bg-ink/20" />
+              <span className="h-1 w-1.5 rounded-full bg-ink/20" />
+            </span>
+            representations shown
+          </span>
         </div>
       </main>
     </div>

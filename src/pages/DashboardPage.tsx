@@ -10,7 +10,6 @@ import { unlockedThroughIndex } from "@/features/course/progression";
 import { LessonPathCard } from "@/features/course/LessonPathCard";
 import { AppHeader } from "@/components/AppHeader";
 import { LoadingScreen } from "@/components/LoadingScreen";
-import { CONCEPT_LABELS } from "@/types/concepts";
 import { fetchRecentAttempts } from "@/services/attempts";
 import { updateUserProfile } from "@/services/users";
 import { upsertLeaderboardEntry } from "@/services/leaderboard";
@@ -21,9 +20,11 @@ import { ContinueHero } from "@/features/dashboard/ContinueHero";
 import { CoachCard } from "@/features/dashboard/CoachCard";
 import { ReviewsDueCard } from "@/features/dashboard/ReviewsDueCard";
 import { RetentionCard } from "@/features/dashboard/RetentionCard";
+import { MasteryMeters } from "@/features/dashboard/MasteryMeters";
 import { StreakNudge } from "@/features/dashboard/StreakNudge";
 import { countReviewsDue } from "@/features/dashboard/reviewsDue";
 import { computeRetention } from "@/features/practice/retention";
+import { computeAllStrengths } from "@/features/practice/masteryStrength";
 import { fetchReviewSchedules } from "@/services/reviewSchedule";
 import { effectiveWeeklyXp } from "@/lib/week";
 import type { Attempt } from "@/types/attempt";
@@ -80,7 +81,6 @@ export function DashboardPage() {
   const recommendation = recommend(progress, mastery, profile);
   const frontier = unlockedThroughIndex(progress, profile);
   const masteredConcepts = mastery.filter((m) => m.level >= 3);
-  const reviewConcepts = mastery.filter((m) => m.needsReview && m.level < 3);
   const previewLessons = course.lessons.slice(0, 3);
 
   const activity = buildActivity(attempts);
@@ -88,6 +88,7 @@ export function DashboardPage() {
   const dailyGoal = profile?.dailyGoal ?? 3;
   const reviewsDue = countReviewsDue(mastery, attempts, schedules);
   const retention = computeRetention(attempts);
+  const strengths = computeAllStrengths(mastery, attempts, schedules);
 
   async function changeGoal(delta: number) {
     if (!user) return;
@@ -227,39 +228,7 @@ export function DashboardPage() {
 
         {/* Mastery + Activity, evenly balanced */}
         <div className="grid gap-5 md:grid-cols-2 md:items-start">
-          <section className="animate-fade-in-up stagger-4 card p-5">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-ink/60">
-              Mastery
-            </h2>
-            {masteredConcepts.length === 0 && reviewConcepts.length === 0 ? (
-              <p className="mt-2 text-sm text-ink/60">
-                Finish a lesson to start tracking mastered concepts.
-              </p>
-            ) : (
-              <div className="mt-3 flex flex-col gap-3">
-                {masteredConcepts.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-correct">Mastered</p>
-                    <p className="text-sm text-ink/80">
-                      {masteredConcepts
-                        .map((m) => CONCEPT_LABELS[m.conceptId])
-                        .join(", ")}
-                    </p>
-                  </div>
-                )}
-                {reviewConcepts.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-hint">To review</p>
-                    <p className="text-sm text-ink/80">
-                      {reviewConcepts
-                        .map((m) => CONCEPT_LABELS[m.conceptId])
-                        .join(", ")}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-          </section>
+          <MasteryMeters strengths={strengths} />
           <ActivityCalendar activity={activity} />
         </div>
       </main>
