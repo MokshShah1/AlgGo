@@ -60,6 +60,29 @@ export function sample(items: PoolItem[], n: number, seed?: number): PoolItem[] 
 }
 
 /**
+ * Interleaving (a learning-science technique): reorder a set of items so the
+ * same primary concept does not appear twice in a row where avoidable. This
+ * forces the learner to choose the right approach each time instead of riding
+ * the momentum of the previous question. The set of items is preserved; only
+ * the order changes.
+ */
+export function interleaveByConcept(items: PoolItem[]): PoolItem[] {
+  const primary = (it: PoolItem) => it.solvable.concepts[0] ?? it.solvable.kind;
+  const remaining = [...items];
+  const result: PoolItem[] = [];
+  let last: string | null = null;
+
+  while (remaining.length) {
+    let idx = remaining.findIndex((it) => primary(it) !== last);
+    if (idx === -1) idx = 0; // only same-concept items left; accept a repeat
+    const [picked] = remaining.splice(idx, 1);
+    result.push(picked);
+    last = primary(picked);
+  }
+  return result;
+}
+
+/**
  * Pick the unused item whose difficulty is closest to `target` (1-3).
  * A little jitter keeps repeated sessions from feeling identical.
  */

@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { motion } from "motion/react";
 import { Check, Sparkles } from "lucide-react";
 import { QuizSession } from "@/features/quiz/QuizSession";
-import { buildPool, sample, dateSeed } from "@/features/quiz/pool";
+import { buildPool, sample, dateSeed, interleaveByConcept } from "@/features/quiz/pool";
 import { AppHeader } from "@/components/AppHeader";
 import { AiProblemRunner } from "@/features/ai/AiProblemRunner";
 import { useLearnerData } from "@/features/progress/useLearnerData";
@@ -28,7 +28,8 @@ type AiState =
 export function DailyChallengePage() {
   const seed = dateSeed();
   const questions = useMemo(
-    () => sample(buildPool(), DAILY_COUNT, seed),
+    // Interleave the daily set so the same concept never lands twice in a row.
+    () => interleaveByConcept(sample(buildPool(), DAILY_COUNT, seed)),
     [seed]
   );
   const [doneToday, setDoneToday] = useState(false);

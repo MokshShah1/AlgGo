@@ -1,23 +1,41 @@
 import type { Attempt } from "@/types/attempt";
 import type { MasteryRecord } from "@/types/mastery";
 import type { ConceptId } from "@/types/concepts";
-import { buildPool, itemDifficulty, type PoolItem } from "@/features/quiz/pool";
+import type { ReviewSchedule } from "@/types/review";
+import {
+  buildPool,
+  interleaveByConcept,
+  itemDifficulty,
+  type PoolItem,
+} from "@/features/quiz/pool";
+import { dueConceptIds } from "@/features/practice/spacedRepetition";
 
 /**
- * Build a spaced-repetition practice queue: surface the learner's weakest and
- * most-recently-missed material first. Priority blends mastery level,
- * needs-review flags, and how often a specific step was answered wrong.
+ * Build a spaced-repetition + interleaved practice queue.
+ *
+ * Selection prioritises (a) concepts that are *due* per the spaced-repetition
+ * schedule, (b) low mastery / needs-review concepts, and (c) recently missed
+ * steps. The chosen set is then INTERLEAVED so the same concept doesn't repeat
+ * back-to-back (so the learner picks the right method each time).
  */
 export function buildReviewQueue(
   mastery: MasteryRecord[],
   attempts: Attempt[],
-  max = 8
+  max = 8,
+  schedules: ReviewSchedule[] = []
 ): PoolItem[] {
+  const due = new Set<ConceptId>(dueConceptIds(mastery, schedules));
+
   const conceptWeight = new Map<ConceptId, number>();
   for (const m of mastery) {
     let w = Math.max(0, 3 - m.level); // lower mastery => higher weight
     if (m.needsReview) w += 2;
+    if (due.has(m.conceptId)) w += 3; // spaced-repetition: due now
     if (w > 0) conceptWeight.set(m.conceptId, w);
+  }
+  // Concepts that are due purely from the schedule (no weak mastery record).
+  for (const c of due) {
+    if (!conceptWeight.has(c)) conceptWeight.set(c, 3);
   }
 
   // Recent wrong answers by step, decaying so the latest mistakes weigh most.
@@ -46,12 +64,17 @@ export function buildReviewQueue(
     .sort((a, b) => b.score - a.score)
     .map((s) => s.item);
 
-  if (weak.length >= max) return weak.slice(0, max);
+  let selected: PoolItem[];
+  if (weak.length >= max) {
+    selected = weak.slice(0, max);
+  } else {
+    // Top up with a spread of other questions so the session is always full.
+    const chosen = new Set(weak.map((i) => i.solvable.id));
+    const filler = pool
+      .filter((i) => !chosen.has(i.solvable.id))
+      .sort(() => Math.random() - 0.5);
+    selected = [...weak, ...filler].slice(0, max);
+  }
 
-  // Top up with a spread of other questions so the session is always full.
-  const chosen = new Set(weak.map((i) => i.solvable.id));
-  const filler = pool
-    .filter((i) => !chosen.has(i.solvable.id))
-    .sort(() => Math.random() - 0.5);
-  return [...weak, ...filler].slice(0, max);
+  return interleaveByConcept(selected);
 }

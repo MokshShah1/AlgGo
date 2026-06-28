@@ -1,49 +1,39 @@
 import type { Attempt } from "@/types/attempt";
 import type { MasteryRecord } from "@/types/mastery";
 import type { ConceptId } from "@/types/concepts";
+import type { ReviewSchedule } from "@/types/review";
 import { buildPool } from "@/features/quiz/pool";
+import { dueConceptIds } from "@/features/practice/spacedRepetition";
 
 /**
- * Count how many pool items are genuinely "due" for review.
+ * Count how many pool items are genuinely "due" for review right now.
  *
- * This mirrors the prioritisation signals in `buildReviewQueue`
- * (`@/features/practice/reviewQueue`) — low mastery / needs-review concepts and
- * recently missed steps — but ignores its difficulty tie-breaker so that only
- * items with a real review need are counted (the queue adds a tiny difficulty
- * weight to *every* item, which we deliberately exclude here).
- *
- * Result is capped at `cap` (the review queue's default session size) so the
- * dashboard surfaces "a full session's worth" rather than an alarming total.
+ * Due-ness is driven by the spaced-repetition schedule (concepts whose
+ * nextReviewAt has passed) plus weak/needs-review concepts that haven't been
+ * scheduled yet, and recently missed steps. Capped at `cap` (a session's worth)
+ * so the dashboard surfaces "a full session" rather than an alarming total.
  */
 export function countReviewsDue(
   mastery: MasteryRecord[],
   attempts: Attempt[],
+  schedules: ReviewSchedule[] = [],
   cap = 8
 ): number {
-  const conceptWeight = new Map<ConceptId, number>();
-  for (const m of mastery) {
-    let w = Math.max(0, 3 - m.level); // lower mastery => higher weight
-    if (m.needsReview) w += 2;
-    if (w > 0) conceptWeight.set(m.conceptId, w);
-  }
+  const due = new Set<ConceptId>(dueConceptIds(mastery, schedules));
 
-  // Recent wrong answers by step, decaying so the latest mistakes weigh most.
-  const wrongByStep = new Map<string, number>();
+  // Recently missed steps still count even if their concept isn't "due" yet.
+  const wrongSteps = new Set<string>();
   const sorted = [...attempts].sort(
     (a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0)
   );
-  sorted.slice(0, 60).forEach((a, i) => {
-    if (a.isCorrect) return;
-    const decay = 1 - i / 80;
-    wrongByStep.set(a.stepId, (wrongByStep.get(a.stepId) ?? 0) + 3 * decay);
+  sorted.slice(0, 60).forEach((a) => {
+    if (!a.isCorrect) wrongSteps.add(a.stepId);
   });
 
-  let due = 0;
+  let count = 0;
   for (const item of buildPool()) {
-    let score = 0;
-    for (const c of item.solvable.concepts) score += conceptWeight.get(c) ?? 0;
-    score += wrongByStep.get(item.solvable.id) ?? 0;
-    if (score > 0) due++;
+    const conceptDue = item.solvable.concepts.some((c) => due.has(c));
+    if (conceptDue || wrongSteps.has(item.solvable.id)) count++;
   }
-  return Math.min(due, cap);
+  return Math.min(count, cap);
 }

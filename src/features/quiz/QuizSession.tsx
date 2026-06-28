@@ -13,7 +13,7 @@ import { AiTutorPanel } from "@/features/ai/AiTutorPanel";
 import { ReasoningBox } from "@/features/ai/ReasoningBox";
 import { aiAvailable, aiHint, aiExplain, type ProblemContext } from "@/lib/ai";
 import { AI_NAME } from "@/lib/aiPersona";
-import { CONCEPT_LABELS } from "@/types/concepts";
+import { CONCEPT_LABELS, type ConceptId } from "@/types/concepts";
 import { VideoLesson } from "@/features/lesson/components/VideoLesson";
 import { XP_PER_SOLVABLE } from "@/features/scoring/constants";
 import { ProgressBar } from "@/features/lesson/components/ProgressBar";
@@ -68,6 +68,12 @@ interface QuizSessionProps {
   exitLabel?: string;
   onRestart?: () => void;
   onFinish?: (result: QuizResult) => void;
+  /**
+   * Fired once per question, the first time it's checked, with the concepts it
+   * exercises and whether that first attempt was correct. Used to drive the
+   * spaced-repetition schedule in review mode.
+   */
+  onAnswer?: (info: { concepts: ConceptId[]; correct: boolean }) => void;
 }
 
 interface Points {
@@ -92,6 +98,7 @@ export function QuizSession({
   exitLabel = "Exit",
   onRestart,
   onFinish,
+  onAnswer,
 }: QuizSessionProps) {
   const { user } = useAuth();
   const uid = persist ? user?.uid ?? "" : "";
@@ -159,6 +166,9 @@ export function QuizSession({
   }
 
   const creditedRef = useRef(false);
+  // Step ids whose first-attempt outcome has already been reported via onAnswer
+  // (spaced repetition grades on the first try only).
+  const gradedRef = useRef<Set<string>>(new Set());
   const servedRef = useRef(0);
   const listIndexRef = useRef(0);
   const usedRef = useRef<Set<string>>(new Set());
@@ -371,6 +381,12 @@ export function QuizSession({
         attemptNumber: 1,
         misconceptionTag: result.misconceptionTag,
       }).catch(() => {});
+    }
+
+    // Grade the first attempt for spaced repetition (once per question).
+    if (onAnswer && !gradedRef.current.has(solvable.id)) {
+      gradedRef.current.add(solvable.id);
+      onAnswer({ concepts: solvable.concepts, correct: result.isCorrect });
     }
 
     if (result.isCorrect) {

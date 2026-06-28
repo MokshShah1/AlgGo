@@ -20,15 +20,20 @@ import { getStreakStatus, repairStreak } from "@/features/scoring/streakRepair";
 import { ContinueHero } from "@/features/dashboard/ContinueHero";
 import { CoachCard } from "@/features/dashboard/CoachCard";
 import { ReviewsDueCard } from "@/features/dashboard/ReviewsDueCard";
+import { RetentionCard } from "@/features/dashboard/RetentionCard";
 import { StreakNudge } from "@/features/dashboard/StreakNudge";
 import { countReviewsDue } from "@/features/dashboard/reviewsDue";
+import { computeRetention } from "@/features/practice/retention";
+import { fetchReviewSchedules } from "@/services/reviewSchedule";
 import { effectiveWeeklyXp } from "@/lib/week";
 import type { Attempt } from "@/types/attempt";
+import type { ReviewSchedule } from "@/types/review";
 
 export function DashboardPage() {
   const { profile, user, refreshProfile } = useAuth();
   const { progress, mastery, loading } = useLearnerData();
   const [attempts, setAttempts] = useState<Attempt[]>([]);
+  const [schedules, setSchedules] = useState<ReviewSchedule[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -36,6 +41,11 @@ export function DashboardPage() {
     fetchRecentAttempts(user.uid, { max: 300 })
       .then((rows) => {
         if (active) setAttempts(rows);
+      })
+      .catch(() => {});
+    fetchReviewSchedules(user.uid)
+      .then((rows) => {
+        if (active) setSchedules(rows);
       })
       .catch(() => {});
     return () => {
@@ -76,7 +86,8 @@ export function DashboardPage() {
   const activity = buildActivity(attempts);
   const doneToday = solvedToday(attempts);
   const dailyGoal = profile?.dailyGoal ?? 3;
-  const reviewsDue = countReviewsDue(mastery, attempts);
+  const reviewsDue = countReviewsDue(mastery, attempts, schedules);
+  const retention = computeRetention(attempts);
 
   async function changeGoal(delta: number) {
     if (!user) return;
@@ -183,6 +194,9 @@ export function DashboardPage() {
 
         {/* AI coach: what to study next */}
         <CoachCard mastery={mastery} streak={profile?.streakCount ?? 0} />
+
+        {/* Learning-science effect: retention / recovery from review */}
+        <RetentionCard stats={retention} />
 
         {/* Today's goal */}
         <DailyGoalCard done={doneToday} goal={dailyGoal} onChange={changeGoal} />
